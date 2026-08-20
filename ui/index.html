@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --bg:#141820; --card:#1c2330; --card2:#111620;
+    --accent:#0ea5e9; --accentH:#0284c7;
+    --text:#e8f4ff; --sub:#4a7a9b; --border:#1e2d3d;
+    --danger:#e05252; --success:#34d399; --yellow:#fbbf24;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:394px; height:502px; overflow:hidden; font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); user-select:none; }
+  .app { width:394px; height:502px; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+
+  /* fix_a15.1: 시작 단계 클릭 가드 - pywebviewready 전엔 사용자 입력 무시 */
+  /* 윈도우는 떠 있지만 백엔드(pywebview/WebView2)가 아직 준비 안 됐을 때 클릭하면 응답없음 표시 발생 가능 */
+  body:not(.ready) .app { pointer-events: none; }
+  body:not(.ready) .app::before {
+    content: "초기화 중...";
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(20,24,32,0.85); color: var(--sub); font-size:13px;
+    z-index: 9999; pointer-events: auto;
+    -webkit-app-region: no-drag;
+  }
+  /* 윈도우 컨트롤(─, ✕)은 초기화 중에도 동작해야 함 (사용자가 닫고 싶을 수 있으므로) */
+  body:not(.ready) .tr { pointer-events: auto; }
+
+  /* 타이틀바 */
+  .tb { height:49px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; flex-shrink:0; -webkit-app-region:drag; }
+  .tt { font-size:14px; font-weight:700; pointer-events:none; }
+  .tr { display:flex; align-items:center; gap:7px; -webkit-app-region:no-drag; }
+  .badge { font-size:11px; padding:3px 10px; border-radius:7px; font-weight:600; }
+  .badge.connected { background:#0a2218; color:var(--success); }
+  .badge.disconnected { background:var(--card2); color:var(--sub); }
+  .wb { width:27px; height:27px; border-radius:7px; border:none; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--sub); background:transparent; transition:background .15s; -webkit-app-region:no-drag; }
+  .wb:hover { background:var(--card); color:var(--text); }
+  .wb.close:hover { background:#4a1010; color:var(--danger); }
+
+  /* 탭 */
+  .tabs { height:35px; display:flex; align-items:stretch; background:var(--card2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); flex-shrink:0; }
+  .tab { padding:0 20px; font-size:12px; color:var(--sub); cursor:pointer; display:flex; align-items:center; border-bottom:2px solid transparent; transition:color .15s; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab:hover:not(.active) { color:var(--text); }
+
+  .panel { display:none; flex-direction:column; flex:1; overflow:hidden; }
+  .panel.active { display:flex; }
+
+  /* 메인 */
+  .main { display:flex; flex-direction:column; padding:14px 14px 0; gap:10px; flex:1; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; flex-shrink:0; }
+  .card { background:var(--card); border-radius:16px; padding:14px 16px 16px; height:83px; display:flex; flex-direction:column; justify-content:space-between; border:1px solid var(--border); transition:border-color .3s; }
+  .card.flash { border-color:var(--accent); }
+  .cl { font-size:10px; color:var(--sub); letter-spacing:.5px; text-transform:uppercase; }
+  .cv { font-size:36px; font-weight:900; color:var(--text); line-height:1; letter-spacing:-1px; }
+
+  /* 합산카드 */
+  .total-card { background:var(--card); border-radius:16px; padding:14px 16px 16px; height:109px; border:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between; }
+  .total-label { font-size:10px; color:var(--sub); letter-spacing:.5px; text-transform:uppercase; }
+
+  /* 합산 숫자 행: [파란큰글씨] [우측: 위=+치킨, 아래=x2 =결과] */
+  .total-row { display:flex; align-items:center; gap:8px; }
+  .total-val { font-size:38px; font-weight:900; color:var(--accent); line-height:1; letter-spacing:-1px; }
+  .total-tags { display:flex; flex-direction:column; justify-content:center; gap:2px; }
+  .top-tag { font-size:13px; font-weight:700; color:var(--yellow); line-height:1; min-height:14px; }
+  .bot-tag { display:flex; align-items:baseline; gap:5px; }
+  .mult-tag { font-size:13px; font-weight:700; color:var(--accent); opacity:.8; line-height:1; }
+  .result-tag { font-size:15px; font-weight:700; color:var(--text); line-height:1; }
+
+  /* 계산 버튼 */
+  .calc { flex-shrink:0; background:var(--accent); color:#fff; border:none; border-radius:14px; height:66px; font-size:15px; font-weight:700; cursor:pointer; width:100%; font-family:inherit; transition:background .15s; }
+  .calc:hover { background:var(--accentH); }
+  .calc:disabled { background:#1a3a4a; color:var(--sub); cursor:not-allowed; }
+
+  .st { font-size:11px; color:var(--sub); text-align:center; padding:8px 0 14px; flex-shrink:0; }
+
+  /* fix_a19: 기록 탭 */
+  .history-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+  .history-header { display:flex; justify-content:space-between; align-items:center; padding:12px 14px 6px; flex-shrink:0; }
+  .history-title { font-size:9px; font-weight:700; color:var(--accent); letter-spacing:1.4px; text-transform:uppercase; }
+  .history-count { font-size:10px; color:var(--sub); }
+  .history-list { flex:1; min-height:0; overflow-y:auto; padding:0 14px 14px; display:flex; flex-direction:column; gap:6px; }
+  .history-list::-webkit-scrollbar { width:3px; }
+  .history-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  .history-empty { text-align:center; color:var(--sub); font-size:11px; padding:60px 0; }
+  .h-item { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .15s; flex-shrink:0; }
+  .h-item:hover { border-color:#2a3d52; }
+  .h-head { display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; }
+  .h-head:hover { background:rgba(255,255,255,0.02); }
+  .h-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .h-dot.sent { background:var(--success); box-shadow:0 0 6px rgba(52,211,153,0.4); }
+  .h-dot.unsent { background:var(--sub); opacity:0.4; }
+  .h-status { font-size:9px; font-weight:600; width:34px; flex-shrink:0; letter-spacing:0.3px; }
+  .h-status.sent { color:var(--success); }
+  .h-status.unsent { color:var(--sub); }
+  .h-time { font-size:10px; color:var(--sub); width:38px; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .h-mode { font-size:10px; color:var(--text); background:var(--card2); padding:2px 7px; border-radius:5px; flex-shrink:0; font-weight:600; }
+  .h-summary { flex:1; display:flex; align-items:baseline; gap:5px; justify-content:flex-end; }
+  .h-summary-label { font-size:9px; color:var(--sub); }
+  .h-summary-val { font-size:14px; font-weight:800; color:var(--accent); letter-spacing:-0.3px; font-variant-numeric:tabular-nums; }
+  .h-arrow { font-size:10px; color:var(--sub); width:8px; flex-shrink:0; text-align:center; transition:transform .2s; }
+  .h-item.expanded .h-arrow { transform:rotate(90deg); }
+  .h-body { display:none; border-top:1px solid var(--border); padding:9px 12px; background:var(--card2); }
+  .h-item.expanded .h-body { display:block; }
+  .h-players { display:flex; flex-direction:column; gap:2px; margin-bottom:8px; }
+  .h-player { display:flex; align-items:center; gap:8px; font-size:11px; padding:1px 0; }
+  .h-player-label { color:var(--sub); width:24px; font-weight:600; }
+  .h-player-stat { color:var(--text); font-variant-numeric:tabular-nums; }
+  .h-player-stat .pnum { font-weight:700; }
+  .h-player-stat .psep { color:var(--sub); margin:0 5px; }
+  .h-meta-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:8px; border-top:1px solid var(--border); }
+  .h-meta { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--sub); flex:1; min-width:0; flex-wrap:wrap; }
+  .h-meta-tag { background:rgba(251,191,36,0.1); color:var(--yellow); padding:2px 7px; border-radius:4px; font-weight:600; white-space:nowrap; }
+  .h-meta-tag.mult { background:rgba(14,165,233,0.1); color:var(--accent); }
+  .h-meta-tag.dim { background:transparent; color:var(--sub); border:1px solid var(--border); }
+  .h-resend-btn { background:var(--accent); color:#fff; border:none; border-radius:7px; padding:5px 0; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; width:64px; flex-shrink:0; }
+  .h-resend-btn:hover { background:var(--accentH); }
+
+  /* 설정 */
+  .settings { flex:1; overflow-y:auto; padding:4px 0 20px; }
+  .settings::-webkit-scrollbar { width:3px; }
+  .settings::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  .sec-title { font-size:9px; font-weight:700; color:var(--accent); padding:14px 14px 5px; letter-spacing:1.4px; text-transform:uppercase; }
+  .sec-div { height:1px; background:var(--border); margin:0 14px 8px; }
+  .row { display:flex; align-items:center; padding:5px 14px; gap:10px; }
+  .row-lbl { font-size:11px; color:var(--sub); width:110px; flex-shrink:0; }
+  .inp { background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:5px 10px; font-size:11px; outline:none; font-family:inherit; transition:border-color .15s; }
+  .inp:focus { border-color:var(--accent); }
+  select.inp { cursor:pointer; }
+  .chk-row { display:flex; align-items:center; gap:8px; padding:5px 14px; cursor:pointer; font-size:11px; color:var(--sub); transition:color .15s; }
+  .chk-row:hover { color:var(--text); }
+  .chk-row input { accent-color:var(--accent); cursor:pointer; width:14px; height:14px; }
+  .btn-row { display:flex; gap:7px; padding:7px 14px 0; flex-wrap:wrap; }
+  .btn { background:var(--card2); color:var(--sub); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:11px; cursor:pointer; font-family:inherit; transition:background .15s,color .15s; }
+  .btn:hover { background:var(--card); color:var(--text); }
+  .btn.accent { background:var(--accent); color:#fff; font-weight:700; border-color:var(--accent); }
+  .btn.accent:hover { background:var(--accentH); }
+  .btn.danger { color:var(--danger); }
+  .btn.danger:hover { background:#2a1515; border-color:var(--danger); }
+  .info { font-size:10px; color:var(--sub); padding:5px 14px 0; line-height:1.6; }
+  .steam-section { display:none; }
+  .steam-section.visible { display:block; }
+  .dir-row { display:flex; align-items:center; padding:5px 14px; gap:6px; }
+  .dir-input { flex:1; background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:5px 10px; font-size:10px; outline:none; font-family:inherit; transition:border-color .15s; }
+  .dir-input:focus { border-color:var(--accent); }
+  .btn-browse { background:var(--card2); color:var(--sub); border:1px solid var(--border); border-radius:8px; padding:5px 10px; font-size:11px; cursor:pointer; font-family:inherit; white-space:nowrap; transition:background .15s,color .15s; }
+  .btn-browse:hover { background:var(--card); color:var(--text); }
+  .chat-st { font-size:10px; color:var(--sub); padding:5px 14px 0; line-height:1.6; }
+  .save-wrap { padding:12px 14px 0; }
+  .inp-full { width:100%; background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:5px 10px; font-size:11px; outline:none; font-family:inherit; transition:border-color .15s; }
+  .inp-full:focus { border-color:var(--accent); }
+  .credential-row { display:flex; flex-direction:column; padding:4px 14px; gap:4px; }
+  .credential-lbl { font-size:10px; color:var(--sub); }
+  .save { width:100%; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:10px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
+  .save:hover { background:var(--accentH); }
+
+  /* fix_a26: 업데이트 배너 (탭 아래, 새 버전 있을 때만) */
+  .upd-banner { display:none; align-items:center; gap:8px; margin:8px 14px 0; padding:6px 8px 6px 12px;
+    background:rgba(14,165,233,.12); border:1px solid rgba(14,165,233,.45); border-radius:10px; font-size:11px; flex-shrink:0; }
+  .upd-banner.show { display:flex; }
+  .upd-banner .upd-txt { flex:1; color:var(--text); line-height:1.4; }
+  .upd-banner .upd-txt b { color:var(--accent); }
+  .upd-banner .upd-sub { font-size:10px; color:var(--sub); }
+  /* 배너가 떠 있는 동안 메인 카드 높이를 줄여 계산 버튼이 잘리지 않게 */
+  .app.has-upd .card { height:68px; padding:11px 16px 12px; }
+  .app.has-upd .cv { font-size:30px; }
+  .app.has-upd .total-card { height:92px; padding:11px 16px 12px; }
+  .app.has-upd .calc { height:56px; }
+  .app.has-upd .main { gap:8px; padding-top:10px; }
+  .upd-banner .btn.accent { padding:6px 10px; white-space:nowrap; }
+  .upd-banner .upd-x { background:none; border:none; color:var(--sub); font-size:12px; cursor:pointer; padding:2px 4px; font-family:inherit; }
+  .upd-banner .upd-x:hover { color:var(--text); }
+  .upd-banner .upd-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:5px; }
+  .upd-banner .upd-bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .2s; }
+
+  /* fix_a26: 최초 실행 안내 카드 (manual_seen=false 일 때 메인 위에 한 번) */
+  .first-run { display:none; position:absolute; left:0; right:0; top:49px; bottom:0; z-index:500; background:rgba(20,24,32,.86); align-items:center; justify-content:center; padding:20px; -webkit-app-region:no-drag; }
+  .first-run.show { display:flex; }
+  .fr-card { width:100%; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 18px 16px; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+  .fr-title { font-size:14px; font-weight:700; margin-bottom:6px; }
+  .fr-title span { color:var(--accent); }
+  .fr-desc { font-size:11px; color:var(--sub); line-height:1.6; margin-bottom:12px; }
+  .fr-steps { font-size:11px; line-height:1.7; margin-bottom:14px; padding-left:2px; }
+  .fr-steps b { color:var(--text); }
+  .fr-steps kbd { background:var(--card2); border:1px solid var(--border); border-radius:5px; padding:0 6px; font-family:inherit; font-size:10.5px; color:var(--yellow); }
+  .fr-row { display:flex; gap:8px; }
+  .fr-row .btn { flex:1; padding:9px 10px; font-size:12px; }
+
+  /* fix_a28: 합산 카드 우측 조작 (치킨 토글 / 수정) */
+  .total-card { position:relative; }
+  .tc-actions { position:absolute; right:12px; top:10px; display:flex; gap:6px; }
+  .chip { background:var(--card2); color:var(--sub); border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:11px; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .chip:hover { color:var(--text); }
+  .chip.on { background:rgba(251,191,36,.14); color:var(--yellow); border-color:rgba(251,191,36,.5); }
+  .chip.warn { border-color:var(--yellow); box-shadow:0 0 0 2px rgba(251,191,36,.18); }
+  .chip:disabled { opacity:.4; cursor:not-allowed; }
+  .app.has-upd .tc-actions { top:8px; }
+  /* fix_a28: 수정 패널 (더블클릭 편집 대체) */
+  .edit-panel { display:none; position:absolute; left:0; right:0; top:49px; bottom:0; z-index:400; background:rgba(20,24,32,.92); align-items:flex-start; justify-content:center; padding:16px 14px; -webkit-app-region:no-drag; }
+  .edit-panel.show { display:flex; }
+  .ep-card { width:100%; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px 14px; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+  .ep-title { font-size:13px; font-weight:700; margin-bottom:4px; }
+  .ep-desc { font-size:10.5px; color:var(--sub); line-height:1.5; margin-bottom:10px; }
+  .ep-grid { display:grid; grid-template-columns:28px 1fr 1fr; gap:6px 8px; align-items:center; margin-bottom:10px; }
+  .ep-grid .ep-h { font-size:10px; color:var(--sub); text-transform:uppercase; letter-spacing:.6px; }
+  .ep-grid .ep-p { font-size:11px; color:var(--sub); font-weight:600; }
+  .ep-grid input { width:100%; background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:7px 9px; font-size:14px; font-weight:700; font-family:inherit; text-align:right; }
+  .ep-grid input:focus { outline:none; border-color:var(--accent); }
+  .ep-grid input.dim { opacity:.55; }
+  .ep-chicken { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--sub); margin-bottom:12px; }
+  .ep-row { display:flex; gap:6px; }
+  .ep-row .btn { flex:1; padding:9px 6px; font-size:11.5px; }
+  .ep-note { font-size:10px; color:var(--sub); margin-top:8px; line-height:1.5; }
+  .ep-note b { color:var(--yellow); }
+  .h-meta-tag.edited { background:rgba(14,165,233,.1); color:var(--accent); }
+
+  /* fix_a26: 설정 탭 - 앱 정보 */
+  .app-info { display:flex; align-items:center; justify-content:space-between; padding:4px 14px 2px; font-size:11px; color:var(--sub); }
+  .app-info b { color:var(--text); font-weight:600; }
+  .upd-status { font-size:10px; color:var(--sub); padding:0 14px 4px; min-height:14px; }
+  .upd-status.ok { color:var(--success); }
+  .upd-status.new { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="tb">
+    <div class="tt">PUBG 스트리머 헬퍼</div>
+    <div class="tr">
+      <div class="badge disconnected" id="badge">● 미연결</div>
+      <button class="wb" onclick="py('minimize_window')">─</button>
+      <button class="wb close" onclick="py('close_window')">✕</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="go('main')">메인</div>
+    <div class="tab" onclick="go('history')">기록</div>
+    <div class="tab" onclick="go('settings')">설정</div>
+  </div>
+
+  <!-- fix_a26: 업데이트 배너 (새 버전이 있을 때만 표시) -->
+  <div class="upd-banner" id="upd-banner">
+    <div class="upd-txt">
+      <div><b id="upd-tag">새 버전</b> 이 나왔어요 <span class="upd-sub" id="upd-cur"></span></div>
+      <div class="upd-sub" id="upd-msg">설치 파일을 받아 실행하고 앱이 종료돼요</div>
+      <div class="upd-bar" id="upd-bar" style="display:none"><i id="upd-bar-i"></i></div>
+    </div>
+    <button class="btn accent" id="upd-go" onclick="startUpdate()">업데이트</button>
+    <button class="upd-x" title="이번 실행에서는 숨기기" onclick="hideUpdateBanner()">✕</button>
+  </div>
+
+  <!-- 메인 -->
+  <div class="panel active" id="p-main">
+    <div class="main">
+      <div class="grid">
+        <div class="card" id="c1"><div class="cl" id="lbl1">P1 딜량</div><div class="cv" id="v1">-</div></div>
+        <div class="card" id="c2"><div class="cl" id="lbl2">P2 딜량</div><div class="cv" id="v2">-</div></div>
+        <div class="card" id="c3"><div class="cl" id="lbl3">P3 딜량</div><div class="cv" id="v3">-</div></div>
+        <div class="card" id="c4"><div class="cl" id="lbl4">P4 딜량</div><div class="cv" id="v4">-</div></div>
+      </div>
+
+      <!-- 합산카드 -->
+      <div class="total-card">
+        <div class="tc-actions">
+          <button class="chip" id="chicken-chip" onclick="toggleChicken()" title="치킨 판정을 직접 켜고 꺼요" disabled>🍗 치킨</button>
+          <button class="chip" id="edit-chip" onclick="openEdit()" title="읽은 숫자를 고쳐요" disabled>수정</button>
+        </div>
+        <div class="total-label" id="total-label">팀 합산 딜량</div>
+        <div class="total-row">
+          <span class="total-val" id="total-val">-</span>
+          <div class="total-tags" id="total-tags" style="display:none">
+            <span class="top-tag" id="chicken-tag"></span>
+            <div class="bot-tag">
+              <span class="mult-tag" id="mult-tag"></span>
+              <span class="result-tag" id="result-tag"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="calc" id="calc" onclick="calc()">이번 판 계산</button>
+      <div class="st" id="status">대기 중</div>
+    </div>
+  </div>
+
+  <!-- fix_a19: 기록 탭 -->
+  <div class="panel" id="p-history">
+    <div class="history-panel">
+      <div class="history-header">
+        <div class="history-title">최근 기록</div>
+        <div class="history-count" id="history-count">0 / 20</div>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="history-empty" id="history-empty">기록이 없습니다. F8을 눌러 OCR을 실행하세요.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 설정 -->
+  <div class="panel" id="p-settings">
+    <div class="settings">
+
+      <div class="sec-title">기본 설정</div>
+      <div class="sec-div"></div>
+      <div class="row">
+        <div class="row-lbl">모니터</div>
+        <select class="inp" id="mon" onchange="py('set_monitor',this.value)" style="width:60px"></select>
+        <button class="btn" onclick="refreshMon()">새로고침</button>
+      </div>
+      <div class="row">
+        <div class="row-lbl">인원 모드</div>
+        <select class="inp" id="game-mode" onchange="onGameMode(this.value)" style="flex:none;width:100px">
+          <option value="auto">🔍 자동 감지</option>
+          <option value="solo">1인 (솔로)</option>
+          <option value="duo">2인 (듀오)</option>
+          <option value="squad3" disabled title="미구현 (개발중)">3인 (스쿼드) — 개발중</option>
+          <option value="squad4">4인 (스쿼드)</option>
+        </select>
+      </div>
+      <div class="info" id="auto-warn" style="color:#fbbf24;display:none">⚠️ 자동 감지는 결과화면 밝기로 판별합니다. 드문 경우 오감지될 수 있습니다.</div>
+      <div class="row">
+        <div class="row-lbl">읽기 대상</div>
+        <select class="inp" id="read-target" onchange="onReadTarget(this.value)" style="flex:none;width:100px">
+          <option value="damage">딜량</option>
+          <option value="kill">킬 수</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="row-lbl">결과값 배수</div>
+        <select class="inp" id="mult-sel" onchange="py('set_multiplier',this.value)" style="width:60px">
+          <option>x1</option><option>x2</option><option>x3</option><option>x4</option><option>x5</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="row-lbl">캡처 모드</div>
+        <select class="inp" id="capture-mode" onchange="onCaptureMode(this.value)" style="flex:none;width:130px">
+          <option value="screen">화면 직접 캡처</option>
+          <option value="steam">스팀 스크린샷</option>
+        </select>
+      </div>
+      <div class="steam-section" id="steam-section">
+        <div class="dir-row">
+          <input class="dir-input" id="steam-dir" type="text" placeholder="스팀 스크린샷 폴더 경로"
+                 onchange="py('set_steam_screenshot_dir',this.value)">
+          <button class="btn-browse" onclick="browseDir()">찾기</button>
+        </div>
+        <div class="row">
+          <div class="row-lbl">스크린샷 딜레이</div>
+          <select class="inp" id="steam-delay" onchange="py('set_steam_screenshot_delay',this.value)" style="flex:none;width:80px">
+            <option value="0.5">0.5초</option>
+            <option value="0.8">0.8초</option>
+            <option value="1.0">1.0초</option>
+            <option value="1.5">1.5초</option>
+            <option value="2.0">2.0초</option>
+          </select>
+        </div>
+        <div class="info">스팀 스크린샷 폴더 예시:<br>C:\Program Files (x86)\Steam\userdata\[ID]\760\remote\[게임ID]\screenshots</div>
+      </div>
+      <label class="chk-row"><input type="checkbox" id="hotkey" onchange="onHotkey(this.checked)"> F8 전역 핫키 (화면 캡처 모드 전용)</label>
+      <label class="chk-row"><input type="checkbox" id="min-tray" onchange="py('set_minimize_to_tray',this.checked)"> 창 닫기 시 트레이로 최소화</label>
+      <label class="chk-row"><input type="checkbox" id="auto" onchange="py('set_chat_enabled',this.checked)"> 치지직 자동 전송</label>
+      <div class="btn-row">
+        <button class="btn accent" onclick="manualSendUI()">결과 수동 전송 (F9)</button>
+      </div>
+
+      <div class="sec-title">채팅 메시지</div>
+      <div class="sec-div"></div>
+      <div class="credential-row">
+        <div class="credential-lbl">메시지 포맷 ({딜} = 최종 딜량)</div>
+        <input class="inp-full" id="chat-fmt" type="text" placeholder="!미션 !딜 {딜}"
+               onchange="py('set_chat_message_format',this.value)">
+      </div>
+      <div class="info">플레이스홀더:<br>{합계} = 딜 또는 킬 합계 (읽기 대상에 따라)<br>{딜합계} = 딜량 합계, {킬합계} = 킬 합계<br>예: !미션 {합계} / !딜 {딜합계} !킬 {킬합계}</div>
+
+      <div class="sec-title">치킨 보너스</div>
+      <div class="sec-div"></div>
+      <label class="chk-row"><input type="checkbox" id="chicken-en" onchange="py('set_chicken_bonus_enabled',this.checked)"> 치킨 보너스 사용</label>
+      <div class="row">
+        <div class="row-lbl">보너스 딜량</div>
+        <input class="inp" id="chicken-dmg" type="number" min="0" step="100" style="width:90px"
+               onchange="py('set_chicken_bonus_damage',this.value)">
+      </div>
+      <label class="chk-row"><input type="checkbox" id="kill-bonus-en" onchange="py('set_kill_bonus_enabled',this.checked)"> 치킨 시 킬 보너스</label>
+      <div class="row">
+        <div class="row-lbl">보너스 킬수</div>
+        <input class="inp" id="kill-bonus-cnt" type="number" min="0" step="1" style="width:90px"
+               onchange="py('set_kill_bonus_count',this.value)">
+      </div>
+      <div class="info">치킨(#1) 달성 시 딜/킬 합산에 보너스를 더한 후 배수 적용</div>
+
+      <div class="sec-title">치지직 연동</div>
+      <div class="sec-div"></div>
+      <div class="credential-row">
+        <div class="credential-lbl">Client ID</div>
+        <input class="inp-full" id="client-id" type="text" placeholder="Client ID 입력">
+      </div>
+      <div class="credential-row" style="margin-top:2px">
+        <div class="credential-lbl">Client Secret</div>
+        <input class="inp-full" id="client-secret" type="password" placeholder="Client Secret 입력">
+      </div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn accent" onclick="saveCredentials()">인증 정보 저장</button>
+      </div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn accent" onclick="connect()">치지직 연결</button>
+        <button class="btn" onclick="disconnect()">연결 해제</button>
+      </div>
+      <div class="chat-st" id="chzzk-st"></div>
+
+      <div class="sec-title">파일 관리</div>
+      <div class="sec-div"></div>
+      <label class="chk-row"><input type="checkbox" id="save-screenshot" onchange="py('set_save_screenshot',this.checked)"> 캡처 이미지 저장 (screenshot 폴더)</label>
+      <label class="chk-row"><input type="checkbox" id="save-debug" onchange="py('set_save_debug_images',this.checked)"> 디버그 이미지 저장 (debug 폴더)</label>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn" onclick="py('open_folder','screenshot')">screenshot</button>
+        <button class="btn" onclick="py('open_folder','debug')">debug</button>
+        <button class="btn" onclick="py('open_folder','logs')">logs</button>
+      </div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn danger" onclick="clr('screenshot')">스크린샷 비우기</button>
+        <button class="btn danger" onclick="clr('debug')">디버그 비우기</button>
+      </div>
+
+      <div class="sec-title">앱 정보</div>
+      <div class="sec-div"></div>
+      <div class="app-info"><span>버전 <b id="app-label">-</b></span><span id="app-repo"></span></div>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn accent" onclick="openManual(false)">사용 설명서 열기</button>
+        <button class="btn" id="upd-check-btn" onclick="checkUpdateManual()">업데이트 확인</button>
+      </div>
+      <div class="upd-status" id="upd-status"></div>
+
+      <div class="save-wrap"><button class="save" onclick="save()">설정 저장</button></div>
+    </div>
+  </div>
+
+
+  <!-- fix_a28: 수정 패널 -->
+  <div class="edit-panel" id="edit-panel">
+    <div class="ep-card">
+      <div class="ep-title">읽은 값 수정</div>
+      <div class="ep-desc" id="ep-desc">틀린 칸만 고치고 [적용]을 누르세요. 비워둔 칸은 그대로예요.</div>
+      <div class="ep-grid" id="ep-grid"></div>
+      <label class="ep-chicken"><input type="checkbox" id="ep-chicken"> 🍗 치킨(#1) 이었어요 — 보너스 적용</label>
+      <div class="ep-row">
+        <button class="btn accent" onclick="applyEdit(false)">적용</button>
+        <button class="btn accent" id="ep-apply-send" onclick="applyEdit(true)">적용 후 전송</button>
+        <button class="btn" onclick="closeEdit()">취소</button>
+      </div>
+      <div class="ep-note" id="ep-note"></div>
+    </div>
+  </div>
+
+  <!-- fix_a26: 최초 실행 안내 카드 -->
+  <div class="first-run" id="first-run">
+    <div class="fr-card">
+      <div class="fr-title">처음 오셨네요 <span>· 30초 안내</span></div>
+      <div class="fr-desc">PUBG 결과창을 읽어서 킬·딜을 치지직 채팅에 보내주는 앱이에요. 자세한 건 설명서에 전부 있어요.</div>
+      <div class="fr-steps">
+        ① <b>설정</b> 탭에서 치지직 Client ID / Secret 입력 → <b>치지직 연결</b><br>
+        ② 인원 모드(솔로/듀오/스쿼드)와 캡처 모드 선택<br>
+        ③ 결과창에서 <kbd>F8</kbd> = 읽기, <kbd>F9</kbd> = 채팅 전송
+      </div>
+      <div class="fr-row">
+        <button class="btn accent" onclick="openManual(true)">설명서 열기</button>
+        <button class="btn" onclick="dismissFirstRun()">나중에 볼게요</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function go(t){
+  // fix_a19: 탭 순서 메인/기록/설정
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['main','history','settings'][i]===t));
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('p-'+t).classList.add('active');
+  // 기록 탭으로 진입 시 즉시 새로고침
+  if (t === 'history') { loadHistory(); }
+}
+async function py(m,...a){ try{ return await window.pywebview.api[m](...a); }catch(e){ return null; } }
+window.__calcBusy = false;
+
+async function init(){
+  try {
+    const c=await py('get_config'); if(!c) {
+      // 백엔드 응답 없음 → 가드 풀고 사용자가 어떻게든 조작할 수 있게
+      document.body.classList.add('ready');
+      return;
+    }
+    const s=document.getElementById('mon');
+  s.innerHTML=(c.monitors||['1']).map(m=>`<option>${m}</option>`).join('');
+  s.value=String(c.monitor_index||1);
+  document.getElementById('auto').checked=c.chat_enabled;
+  document.getElementById('chzzk-st').textContent=c.chat_status||'';
+  document.getElementById('mult-sel').value='x'+(c.chat_multiplier||1);
+  document.getElementById('chicken-en').checked=c.chicken_bonus_enabled;
+  // fix_a18: squad3는 미구현이므로 config에 squad3가 박혀 있으면 squad4로 자동 보정
+  let _resolvedMode = c.game_mode || 'squad4';
+  if (_resolvedMode === 'squad3') {
+    _resolvedMode = 'squad4';
+    py('set_game_mode', 'squad4');
+  }
+  if(document.getElementById('game-mode')) document.getElementById('game-mode').value=_resolvedMode;
+  // 자동 감지 경고 초기화
+  const _aw = document.getElementById('auto-warn');
+  if(_aw) _aw.style.display = (_resolvedMode==='auto') ? '' : 'none';
+  if(document.getElementById('read-target')) document.getElementById('read-target').value=c.read_target||'damage';
+  // 모드에 따라 카드 표시/숨김 초기화
+  const _gm = _resolvedMode;
+  const _cnt = {auto:4,solo:1,duo:2,squad3:3,squad4:4};
+  [1,2,3,4].forEach(i=>{
+    const _c=document.getElementById('c'+i);
+    if(_c) _c.style.opacity=i<=(_cnt[_gm]||4)?'1':'0.15';
+  });
+  document.getElementById('chat-fmt').value=c.chat_message_format||'!미션 {합계}';
+  document.getElementById('save-screenshot').checked=c.save_screenshot!==false;
+  document.getElementById('save-debug').checked=!!c.save_debug_images;
+  // fix_a17: 트레이 최소화 옵션 복원
+  const _mt = document.getElementById('min-tray');
+  if (_mt) _mt.checked = !!c.minimize_to_tray_enabled;
+  document.getElementById('client-id').value=c.client_id||'';
+  document.getElementById('client-secret').value=c.client_secret||'';
+  const cm = c.capture_mode || 'screen';
+  document.getElementById('capture-mode').value = cm;
+  // 핫키: 화면 캡처 모드일 때만 활성, hotkey_enabled 값으로 초기화
+  const hotkeyEl = document.getElementById('hotkey');
+  hotkeyEl.checked = (cm !== 'steam') && !!c.hotkey_enabled;
+  hotkeyEl.disabled = (cm === 'steam');
+  document.getElementById('steam-dir').value = c.steam_screenshot_dir || '';
+  const delayVal = String(c.steam_screenshot_delay || 0.8);
+  const delayEl = document.getElementById('steam-delay');
+  // 가장 가까운 옵션 선택
+  [...delayEl.options].forEach(o=>{ if(Math.abs(parseFloat(o.value)-parseFloat(delayVal))<0.1) o.selected=true; });
+  document.getElementById('steam-section').classList.toggle('visible', cm==='steam');
+  updateCalcBtn(cm);
+  document.getElementById('chicken-dmg').value=c.chicken_bonus_damage||1000;
+  if(document.getElementById('kill-bonus-en')) document.getElementById('kill-bonus-en').checked=!!c.kill_bonus_enabled;
+  if(document.getElementById('kill-bonus-cnt')) document.getElementById('kill-bonus-cnt').value=c.kill_bonus_count||10;
+  setBadge(c.chat_connected);
+  // fix_a26: 버전 표시 + 최초 실행 안내 카드
+  document.getElementById('app-label').textContent = c.app_label || '-';
+  document.getElementById('app-repo').textContent = c.update_repo ? ('github.com/' + c.update_repo) : '';
+  if (c.manual_seen !== true) document.getElementById('first-run').classList.add('show');
+  // fix_a28: 더블클릭 편집(a19~a20) 제거 → 합산 카드의 [수정] 버튼 + 패널로 교체
+  // (frameless 창에서 더블클릭이 창 이동으로 먹혀 안 눌리는 경우가 많았음)
+  refreshEditAvailability();
+  startPolling();
+  // fix_a15.1: 모든 초기화 완료 → 클릭 가드 해제
+  document.body.classList.add('ready');
+  } catch (e) {
+    // 초기화 실패해도 사용자가 조작할 수 있게 가드 해제
+    console.error('init failed:', e);
+    document.body.classList.add('ready');
+  }
+}
+
+// fix_a15.1: pywebviewready 이벤트가 5초 안에 안 오면 (WebView2 초기화 지연 등) 강제로 init 시도
+// 그래도 init이 실패하면 위 catch에서 ready 클래스 부여하므로 가드는 풀림
+setTimeout(() => {
+  if (document.body.classList.contains('ready')) return;
+  if (window.pywebview && window.pywebview.api) { init(); return; }
+  // fix_a28: 5초가 지나도 백엔드 브리지가 없으면 가드를 풀고 안내 (예전엔 "초기화 중..." 으로 영구 고정)
+  document.body.classList.add('ready');
+  st('⚠️ 백엔드 연결이 늦어요. 잠시 후에도 동작하지 않으면 앱을 다시 실행해주세요.');
+}, 5000);
+
+function updateCalcBtn(mode){
+  const btn=document.getElementById('calc');
+  if(!btn) return;
+  btn.textContent = mode==='steam' ? '이번 판 계산 (최근 스샷 확인)' : '이번 판 계산';
+}
+
+function setBadge(ok){
+  const b=document.getElementById('badge');
+  b.textContent=ok?'● 연결됨':'● 미연결';
+  b.className='badge '+(ok?'connected':'disconnected');
+}
+
+async function calc(){
+  if(window.__calcBusy) return;
+  window.__calcBusy = true;
+  const btn=document.getElementById('calc');
+  btn.disabled=true; btn.textContent='계산 중...';
+  st(document.getElementById('capture-mode').value==='steam' ? '새 스팀 스크린샷 대기 중...' : '화면 캡처 중...');
+  try{
+    const r=await py('calculate');
+    if(!r||r.error){ st(r?.error||'오류'); return; }
+
+    renderResult(r);
+    const usedMode = r.capture_mode_used || 'unknown';
+    const usedSource = r.capture_source || '';
+    let stMsg = (r.is_chicken ? '🍗 치킨!' : '완료') + (usedSource ? ` · ${usedMode}` : '');
+    if (r.chicken_uncertain) {
+      // fix_a28: 순위 글자를 못 읽은 경우 — 사용자가 치킨 토글로 직접 정할 수 있게 안내
+      stMsg = '❔ 순위를 읽지 못했어요 — 치킨이면 🍗 버튼을 눌러주세요';
+      document.getElementById('chicken-chip').classList.add('warn');
+    } else {
+      document.getElementById('chicken-chip').classList.remove('warn');
+    }
+    st(stMsg);
+    if(r.auto_send_ready){
+      py('dispatch_auto_send');
+    }
+  }finally{
+    btn.disabled=false; updateCalcBtn(document.getElementById('capture-mode').value);
+    window.__calcBusy = false;
+  }
+}
+
+function onCalculate(){ return calc(); }
+
+async function pollState(){
+  const s = await py('poll_state');
+  if(!s) return;
+  document.getElementById('chzzk-st').textContent = s.chat_status || '';
+  setBadge(!!s.chat_connected);
+  if(s.trigger_calc && !window.__calcBusy){
+    calc();
+  }
+  // fix_a15.3: 핫키 등록 실패 시 사용자에게 한 번만 알림
+  if(s.hotkey_failed && !window.__hotkeyAlertShown){
+    window.__hotkeyAlertShown = true;
+    const msg = s.hotkey_error || 'F8 핫키 등록에 실패했습니다.';
+    st('⚠️ ' + msg);
+    // 상태바에 영구 표시 + 콘솔에도 기록 (디버그 용이)
+    console.warn('Hotkey registration failed:', msg);
+  }
+  // fix_a26: 업데이트 확인 결과 / 다운로드 진행
+  if (s.update) applyUpdateInfo(s.update);
+  if (s.update_progress) applyUpdateProgress(s.update_progress);
+  // fix_a19: F9 핫키 등으로 송출 시 상태 메시지 표시 (3초 후 자동 사라짐)
+  if (s.send_status) {
+    st(s.send_status);
+    if (window.__sendStatusTimer) clearTimeout(window.__sendStatusTimer);
+    window.__sendStatusTimer = setTimeout(()=>{ st('대기 중'); }, 3000);
+    // 송출됐으면 기록 탭이 열려 있다면 갱신
+    if (document.getElementById('p-history').classList.contains('active')) {
+      loadHistory();
+    }
+  }
+}
+
+let __pollHandle = null;
+function startPolling(){
+  if(__pollHandle) return;
+  __pollHandle = setInterval(pollState, 400);
+  pollState();
+}
+
+function fmt(n){ return n==null?'-':Number(n).toLocaleString(); }
+
+// fix_a19: 결과 수동 전송 (UI 버튼) - 백엔드에서 dict 반환
+async function manualSendUI(){
+  const r = await py('manual_send');
+  if (!r) return;
+  if (r.status) {
+    st(r.status);
+    if (window.__sendStatusTimer) clearTimeout(window.__sendStatusTimer);
+    window.__sendStatusTimer = setTimeout(()=>{ st('대기 중'); }, 3000);
+  }
+  // 송출 성공 시 기록 탭 갱신 (탭 보고 있다면)
+  if (r.ok && document.getElementById('p-history').classList.contains('active')) {
+    loadHistory();
+  }
+}
+
+// fix_a19: 기록 로드 + 렌더링
+async function loadHistory(){
+  const items = await py('get_history');
+  renderHistory(items || []);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function modeLabel(m){
+  return ({solo:'솔로', duo:'듀오', squad3:'스쿼드3', squad4:'스쿼드4'})[m] || m;
+}
+
+function renderHistory(items){
+  const list = document.getElementById('history-list');
+  const cnt = document.getElementById('history-count');
+  cnt.textContent = `${items.length} / 20`;
+  if (!items.length){
+    list.innerHTML = '<div class="history-empty" id="history-empty">기록이 없습니다. F8을 눌러 OCR을 실행하세요.</div>';
+    return;
+  }
+  const html = items.map(it => {
+    const sentClass = it.sent ? 'sent' : 'unsent';
+    const sentText = it.sent ? '송출됨' : '미송출';
+    // fix_a19 (수정): read_target에 따라 합딜/합킬 분기, 최종값(배수+치킨 적용 후) 표시
+    const rt = it.read_target || 'damage';
+    const summaryLabel = rt === 'kill' ? '합킬' : '합딜';
+    // 우측 상단에 보여줄 값 = 최종값 (배수/치킨 적용 후)
+    const summaryVal = rt === 'kill' ? (it.final_kill || 0) : (it.final || 0);
+    const players = (it.players||[]).map((p,i)=>{
+      const kVal = p.kill || 0;
+      const dVal = p.damage || 0;
+      let stat;
+      if (rt === 'kill'){
+        stat = `<span class="pnum">${kVal}</span> kill`;
+      } else if (rt === 'damage'){
+        stat = `<span class="pnum">${fmt(dVal)}</span> dmg`;
+      } else {
+        // both
+        stat = `<span class="pnum">${kVal}</span> kill <span class="psep">·</span> <span class="pnum">${fmt(dVal)}</span> dmg`;
+      }
+      return `<div class="h-player"><div class="h-player-label">P${i+1}</div><div class="h-player-stat">${stat}</div></div>`;
+    }).join('');
+    // fix_a21: 치킨 태그 사양 변경
+    // - 치킨 ✓ + 모드 보너스 적용됨(>0) → "+치킨 1000" (딜) / "+킬 10" (킬) [기존 형식 유지]
+    // - 치킨 ✓ + 모드 보너스 미적용(체크 OFF / 0) → "치킨" (수치 없이)
+    // - 치킨 ✗ → "치킨 X" [기존 형식 유지]
+    // is_chicken 필드를 우선 판정 기준으로 사용 (보너스 값으로 치킨 여부 추론하던 버그 수정)
+    let chickenTag;
+    if (it.is_chicken){
+      if (rt === 'kill' && it.kill_bonus > 0){
+        chickenTag = `<div class="h-meta-tag">+킬 ${it.kill_bonus}</div>`;
+      } else if (rt !== 'kill' && it.chicken_bonus > 0){
+        chickenTag = `<div class="h-meta-tag">+치킨 ${it.chicken_bonus}</div>`;
+      } else {
+        // 치킨이지만 해당 모드 보너스가 체크 OFF 또는 0
+        chickenTag = `<div class="h-meta-tag">치킨</div>`;
+      }
+    } else {
+      chickenTag = `<div class="h-meta-tag dim">치킨 X</div>`;
+    }
+    const hasBonus = (it.chicken_bonus > 0 && rt !== 'kill') || (it.kill_bonus > 0 && rt === 'kill');
+    // 메타 태그: 모드 무관 동일 형식 (×배수 = 최종값)
+    const mult = it.multiplier || 1;
+    const finalForMode = rt === 'kill' ? (it.final_kill || 0) : (it.final || 0);
+    const multTag = `<div class="h-meta-tag mult">×${mult} = ${fmt(finalForMode)}</div>`;
+    // fix_a28: 수정된 기록 표시
+    const editedTag = it.edited ? `<div class="h-meta-tag edited" title="읽은 값을 사용자가 고친 기록">수정됨${(it.edited_from!==undefined && it.edited_from!==null) ? ' ('+fmt(it.edited_from)+'→'+fmt(finalForMode)+')' : ''}</div>` : '';
+    return `
+      <div class="h-item" data-id="${it.id}" onclick="toggleHistoryItem(this, event)">
+        <div class="h-head">
+          <div class="h-dot ${sentClass}"></div>
+          <div class="h-status ${sentClass}">${sentText}</div>
+          <div class="h-time">${escapeHtml(it.time_str||'')}</div>
+          <div class="h-mode">${escapeHtml(modeLabel(it.mode))}</div>
+          <div class="h-summary">
+            <div class="h-summary-label">${summaryLabel}</div>
+            <div class="h-summary-val">${fmt(summaryVal)}</div>
+          </div>
+          <div class="h-arrow">▶</div>
+        </div>
+        <div class="h-body">
+          <div class="h-players">${players}</div>
+          <div class="h-meta-row">
+            <div class="h-meta">
+              ${hasBonus ? chickenTag : ''}
+              ${multTag}
+              ${!hasBonus ? chickenTag : ''}
+              ${editedTag}
+            </div>
+            <button class="h-resend-btn" onclick="event.stopPropagation(); resendHistory(${it.id})">재전송</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  list.innerHTML = html;
+}
+
+function toggleHistoryItem(item, e){
+  if (e.target.closest('button')) return;
+  const wasExpanded = item.classList.contains('expanded');
+  // 한 번에 하나만 펼치기
+  document.querySelectorAll('#history-list .h-item.expanded').forEach(el => {
+    if (el !== item) el.classList.remove('expanded');
+  });
+  item.classList.toggle('expanded');
+  // 펼쳐진 경우 본체 끝까지 보이게 스크롤
+  if (!wasExpanded && item.classList.contains('expanded')){
+    setTimeout(()=>{
+      const list = document.getElementById('history-list');
+      const ir = item.getBoundingClientRect();
+      const lr = list.getBoundingClientRect();
+      if (ir.bottom > lr.bottom){
+        list.scrollBy({top: ir.bottom - lr.bottom + 8, behavior:'smooth'});
+      } else if (ir.top < lr.top){
+        list.scrollBy({top: -(lr.top - ir.top + 8), behavior:'smooth'});
+      }
+    }, 50);
+  }
+}
+
+async function resendHistory(historyId){
+  const r = await py('resend_history', historyId);
+  if (!r) return;
+  if (r.ok){
+    st((r && r.status) || '재전송 중...');
+    if (window.__sendStatusTimer) clearTimeout(window.__sendStatusTimer);
+    window.__sendStatusTimer = setTimeout(()=>{ st('대기 중'); }, 3000);
+    // 송출 표시 갱신
+    loadHistory();
+  } else {
+    st('재전송 실패: ' + (r.error || '알 수 없는 오류'));
+  }
+}
+
+// fix_a28: 결과 표시를 한 함수로 (계산 / 수정 적용 / 치킨 토글 공용)
+window.__lastResult = null;
+function renderResult(r){
+  window.__lastResult = r;
+  const rt = r.read_target || 'damage';
+  const n = (r.p_damage || r.p_kill || []).length;
+  [1,2,3,4].forEach(i=>{
+    const lbl = document.getElementById('lbl'+i);
+    let val;
+    if(rt === 'kill'){
+      val = r.p_kill ? r.p_kill[i-1] : '-';
+      if(lbl) lbl.textContent = `P${i} 킬수`;
+    } else if(rt === 'both'){
+      val = r.p_damage ? r.p_damage[i-1] : '-';
+      if(lbl) lbl.textContent = `P${i} 딜 / ${r.p_kill ? r.p_kill[i-1] : '-'}킬`;
+    } else {
+      val = r.p_damage ? r.p_damage[i-1] : '-';
+      if(lbl) lbl.textContent = `P${i} 딜량`;
+    }
+    if (i > n && n > 0) val = '-';
+    document.getElementById('v'+i).textContent = fmt(val);
+    const c=document.getElementById('c'+i);
+    c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),600);
+  });
+  const totalVal = rt === 'kill' ? r.total_kill : r.total_damage;
+  const totalValEl = document.getElementById('total-val');
+  const totalLabelEl = document.getElementById('total-label');
+  totalValEl.textContent = fmt(totalVal);
+  if(rt === 'kill'){ totalValEl.style.color = '#a78bfa'; if(totalLabelEl) totalLabelEl.textContent = '팀 합산 킬수'; }
+  else { totalValEl.style.color = ''; if(totalLabelEl) totalLabelEl.textContent = '팀 합산 딜량'; }
+  const mult = r.multiplier || 1;
+  const hasMult = mult > 1;
+  const hasChicken = r.is_chicken && (rt === 'kill' ? (r.kill_bonus > 0) : (r.chicken_bonus > 0));
+  const showTags = hasMult || hasChicken;
+  document.getElementById('total-tags').style.display = showTags ? '' : 'none';
+  document.getElementById('chicken-tag').textContent = hasChicken ? '+치킨' : '';
+  document.getElementById('mult-tag').textContent = hasMult ? 'x'+mult : '';
+  const finalDisp = rt === 'kill' ? r.final_kill : r.final;
+  document.getElementById('result-tag').textContent = showTags ? '='+fmt(finalDisp) : '';
+  // 치킨 칩 상태
+  const chip = document.getElementById('chicken-chip');
+  chip.disabled = false; chip.classList.toggle('on', !!r.is_chicken);
+  document.getElementById('edit-chip').disabled = false;
+  if (document.getElementById('p-history').classList.contains('active')) loadHistory();
+}
+
+async function refreshEditAvailability(){
+  const lr = await py('get_last_result');
+  const ok = !!(lr && lr.editable);
+  document.getElementById('chicken-chip').disabled = !ok;
+  document.getElementById('edit-chip').disabled = !ok;
+  if (ok) document.getElementById('chicken-chip').classList.toggle('on', !!lr.is_chicken);
+}
+
+async function toggleChicken(){
+  const chip = document.getElementById('chicken-chip');
+  const next = !chip.classList.contains('on');
+  chip.disabled = true;
+  const r = await py('set_last_is_chicken', next);
+  chip.disabled = false;
+  if (!r || r.ok === false) { st('⚠️ ' + ((r && r.error) || '치킨 상태를 바꾸지 못했어요')); return; }
+  chip.classList.remove('warn');
+  renderResult(r);
+  st(next ? '🍗 치킨으로 표시했어요 — 전송하려면 F9 또는 [수정]→[적용 후 전송]' : '치킨 표시를 해제했어요');
+}
+
+async function openEdit(){
+  const lr = await py('get_last_result');
+  if (!lr || !lr.editable) { st('⚠️ ' + ((lr && lr.reason) || '수정할 결과가 없어요')); return; }
+  const rt = lr.read_target || 'damage';
+  const grid = document.getElementById('ep-grid');
+  let html = `<div class="ep-h"></div><div class="ep-h">킬</div><div class="ep-h">피해량</div>`;
+  (lr.players || []).forEach((p, i) => {
+    const kd = rt === 'damage' ? 'dim' : '';
+    const dd = rt === 'kill' ? 'dim' : '';
+    html += `<div class="ep-p">P${i+1}</div>
+      <input type="text" inputmode="numeric" class="${kd}" id="ep-k${i}" value="${p.kill}" placeholder="${p.kill}">
+      <input type="text" inputmode="numeric" class="${dd}" id="ep-d${i}" value="${p.damage}" placeholder="${p.damage}">`;
+  });
+  grid.innerHTML = html;
+  document.getElementById('ep-chicken').checked = !!lr.is_chicken;
+  document.getElementById('ep-desc').textContent = rt === 'kill'
+    ? '틀린 칸만 고치고 [적용]을 누르세요. 지금은 킬 수를 읽는 모드라 킬 칸이 채팅에 나가요.'
+    : '틀린 칸만 고치고 [적용]을 누르세요. 지금은 피해량을 읽는 모드라 피해량 칸이 채팅에 나가요.';
+  document.getElementById('ep-note').innerHTML = lr.sent
+    ? '이 결과는 <b>이미 채팅에 나갔어요</b>. [적용 후 전송]을 누르면 고친 값이 한 번 더 나가요. 봇이 숫자를 누적·차감한다면 먼저 나간 값은 봇 쪽에서 따로 정리해야 해요.'
+    : '아직 채팅에 나가지 않은 결과예요. [적용 후 전송]을 누르면 고친 값으로 바로 보내요.';
+  document.getElementById('edit-panel').classList.add('show');
+  const first = grid.querySelector(rt === 'kill' ? '#ep-k0' : '#ep-d0');
+  if (first) { first.focus(); first.select(); }
+}
+function closeEdit(){ document.getElementById('edit-panel').classList.remove('show'); }
+
+async function applyEdit(send){
+  const players = [];
+  for (let i = 0; i < 4; i++){
+    const k = document.getElementById('ep-k'+i), d = document.getElementById('ep-d'+i);
+    if (!k && !d) break;
+    const kv = k ? k.value.trim() : '', dv = d ? d.value.trim() : '';
+    if ((kv && !/^\d+$/.test(kv)) || (dv && !/^\d+$/.test(dv))) { st('⚠️ 숫자만 입력해주세요 (P'+(i+1)+')'); return; }
+    players.push({ kill: kv === '' ? null : parseInt(kv, 10), damage: dv === '' ? null : parseInt(dv, 10) });
+  }
+  const wantChicken = document.getElementById('ep-chicken').checked;
+  const cur = window.__lastResult;
+  if (cur && !!cur.is_chicken !== wantChicken) {
+    const rc = await py('set_last_is_chicken', wantChicken);
+    if (!rc || rc.ok === false) { st('⚠️ ' + ((rc && rc.error) || '치킨 상태 변경 실패')); return; }
+  }
+  const r = await py('apply_edit', players, !!send);
+  if (!r || r.ok === false) { st('⚠️ ' + ((r && r.error) || '수정을 적용하지 못했어요')); return; }
+  closeEdit();
+  renderResult(r);
+  document.getElementById('chicken-chip').classList.remove('warn');
+  st(send ? '수정본 전송 중...' : '수정했어요 — 전송하려면 F9 또는 [수정]→[적용 후 전송]');
+}
+
+function st(m){ document.getElementById('status').textContent=m; }
+
+function refreshMon(){
+  py('refresh_monitors').then(ms=>{
+    if(!ms)return;
+    const s=document.getElementById('mon'),v=s.value;
+    s.innerHTML=ms.map(m=>`<option>${m}</option>`).join('');
+    if(ms.includes(v))s.value=v;
+  });
+}
+function onCaptureMode(v){
+  document.getElementById('steam-section').classList.toggle('visible', v==='steam');
+  py('set_capture_mode', v);
+  const hotkeyEl = document.getElementById('hotkey');
+  if(v === 'steam'){
+    hotkeyEl.checked = false;
+    hotkeyEl.disabled = true;
+  } else {
+    hotkeyEl.disabled = false;
+  }
+  updateCalcBtn(v);
+  st(v==='steam' ? '스팀 자동 감지 모드' : '화면 직접 캡처 모드');
+}
+
+function browseDir(){
+  py('browse_steam_dir').then(path=>{
+    if(!path) return;
+    document.getElementById('steam-dir').value = path;
+    st('스팀 스크린샷 폴더 선택 완료');
+  });
+}
+
+function connect(){
+  document.getElementById('chzzk-st').textContent='치지직 로그인 브라우저를 여는 중...';
+  py('connect_chzzk','','','').then(r=>{
+    if(r){ document.getElementById('chzzk-st').textContent=r.status; setBadge(r.connected); }
+  });
+}
+function onGameMode(v){
+  py('set_game_mode', v);
+  // 자동 감지 경고 표시
+  const warn = document.getElementById('auto-warn');
+  if(warn) warn.style.display = v==='auto' ? '' : 'none';
+  // 카드 수 조정 (auto면 최대 4개 표시)
+  const counts = {auto:4, solo:1, duo:2, squad3:3, squad4:4};
+  const n = counts[v] || 4;
+  [1,2,3,4].forEach(i=>{
+    const c = document.getElementById('c'+i);
+    if(c) c.style.opacity = i<=n ? '1' : '0.15';
+  });
+  const labels = {auto:'자동 감지', solo:'1인 솔로', duo:'2인 듀오', squad3:'3인 스쿼드', squad4:'4인 스쿼드'};
+  st(labels[v] || v);
+}
+function onReadTarget(v){
+  py('set_read_target', v);
+  // 카드 라벨 즉시 업데이트
+  [1,2,3,4].forEach(i=>{
+    const lbl = document.getElementById('lbl'+i);
+    if(lbl) lbl.textContent = v==='kill'?`P${i} 킬수` : v==='both'?`P${i} 딜+킬` : `P${i} 딜량`;
+  });
+}
+function onHotkey(enabled){
+  py('set_hotkey', enabled);
+}
+function saveCredentials(){
+  const id=document.getElementById('client-id').value.trim();
+  const sec=document.getElementById('client-secret').value.trim();
+  if(!id&&!sec){ st('Client ID 또는 Secret을 입력하세요'); return; }
+  py('set_client_credentials',id,sec).then(r=>{
+    if(r&&r.ok){
+      st('인증 정보 저장 완료');
+      document.getElementById('chzzk-st').textContent='저장 완료 — 이제 치지직 연결을 눌러주세요.';
+    } else { st('저장 실패'); }
+  });
+}
+function disconnect(){
+  py('disconnect_chzzk').then(r=>{
+    if(r){ setBadge(false); document.getElementById('chzzk-st').textContent=r.status; }
+  });
+}
+function clr(n){ if(!confirm(n+' 폴더를 비울까요?'))return; py('clear_folder',n).then(msg=>{ if(msg) st(msg); }); }
+function save(){ py('save_settings').then(()=>st('저장 완료')); }
+
+window.addEventListener('pywebviewready',init);
+
+// ── fix_a26: 설명서 / 최초 실행 / 업데이트 ─────────────────────────
+async function openManual(fromFirstRun){
+  const r = await py('open_manual');
+  if (r && r.ok === false) { st('⚠️ ' + (r.error || '설명서를 열지 못했어요')); }
+  if (fromFirstRun) dismissFirstRun();
+}
+async function dismissFirstRun(){
+  document.getElementById('first-run').classList.remove('show');
+  await py('dismiss_first_run');
+}
+
+let __updSeenKey = null;       // 같은 결과로 배너를 반복 갱신하지 않기 위한 키
+let __updHidden = false;       // ✕ 로 숨기면 이번 실행에서는 다시 안 띄움
+function hideUpdateBanner(){ __updHidden = true; document.getElementById('upd-banner').classList.remove('show'); document.querySelector('.app').classList.remove('has-upd'); }
+
+function applyUpdateInfo(u){
+  const key = (u.available ? 'A' : 'N') + (u.tag || '') + (u.checked_at || '') + (u.checked_manually ? 'M' : '');
+  if (key === __updSeenKey) return;
+  __updSeenKey = key;
+  const stEl = document.getElementById('upd-status');
+  const btn = document.getElementById('upd-check-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '업데이트 확인'; }
+  if (u.available) {
+    document.getElementById('upd-tag').textContent = u.tag || '새 버전';
+    document.getElementById('upd-cur').textContent = '(현재 ' + (u.current_label || '') + ')';
+    if (!__updHidden) { document.getElementById('upd-banner').classList.add('show'); document.querySelector('.app').classList.add('has-upd'); }
+    if (stEl) { stEl.className = 'upd-status new'; stEl.textContent = '새 버전 ' + (u.tag || '') + ' 이 있어요. 위 배너의 [업데이트]를 눌러주세요.'; }
+    return;
+  }
+  // 최신이거나 확인 실패 — 설정 탭에서 직접 눌렀을 때만 문구 표시
+  if (u.checked_manually && stEl) {
+    if (!u.configured) { stEl.className = 'upd-status'; stEl.textContent = '업데이트 주소가 설정되지 않았어요 (업데이트주소.txt).'; }
+    else if (u.error) { stEl.className = 'upd-status'; stEl.textContent = '확인하지 못했어요: ' + u.error; }
+    else { stEl.className = 'upd-status ok'; stEl.textContent = '최신 버전이에요 (' + (u.current_label || '') + ').'; }
+  }
+}
+function applyUpdateProgress(p){
+  const bar = document.getElementById('upd-bar'), bi = document.getElementById('upd-bar-i');
+  const msg = document.getElementById('upd-msg'), go = document.getElementById('upd-go');
+  if (!bar) return;
+  if (p.state === 'downloading') {
+    bar.style.display = ''; go.disabled = true; go.textContent = '받는 중';
+    const pct = p.total ? Math.round(p.got * 100 / p.total) : 0;
+    bi.style.width = pct + '%';
+    msg.textContent = p.total ? ('설치 파일 내려받는 중 ' + pct + '% (' + Math.round(p.got/1048576) + ' / ' + Math.round(p.total/1048576) + ' MB)') : '설치 파일 내려받는 중...';
+  } else if (p.state === 'launching') {
+    bi.style.width = '100%'; msg.textContent = '설치 마법사를 실행해요. 앱은 곧 종료돼요.';
+  } else if (p.state === 'error') {
+    bar.style.display = 'none'; go.disabled = false; go.textContent = '다시 시도';
+    msg.textContent = '실패: ' + (p.error || '알 수 없는 오류') + ' — 릴리스 페이지에서 직접 받을 수도 있어요.';
+  }
+}
+async function checkUpdateManual(){
+  const btn = document.getElementById('upd-check-btn');
+  const stEl = document.getElementById('upd-status');
+  if (btn) { btn.disabled = true; btn.textContent = '확인 중...'; }
+  if (stEl) { stEl.className = 'upd-status'; stEl.textContent = 'GitHub에서 최신 버전을 확인하는 중...'; }
+  __updSeenKey = null;
+  const r = await py('check_update', true);
+  if (!r || r.started === false) { if (btn) { btn.disabled = false; btn.textContent = '업데이트 확인'; } }
+}
+async function startUpdate(){
+  const r = await py('start_update');
+  if (!r) return;
+  if (r.ok === false) st('⚠️ ' + (r.error || '업데이트를 시작하지 못했어요'));
+  else if (r.opened_page) document.getElementById('upd-msg').textContent = '릴리스 페이지를 열었어요. 설치 파일을 받아 실행해주세요 (폴더판은 자동 설치 불가).';
+}
+</script>
+</body>
+</html>
