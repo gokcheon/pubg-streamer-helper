@@ -1,0 +1,48 @@
+﻿PUBG 스트리머 헬퍼 fix_a8 패치노트
+=====================================
+
+[메인 목표]
+솔로(1인) 결과화면 OCR 인식 정확도 0% → 100% 개선
+
+[변경 사항]
+
+1. 솔로 ROI 좌표 수정 (config.json modes.solo)
+   - kill:   기존 (0.2531, 0.6833, 0.2839, 0.7056) → (0.2547, 0.6806, 0.2839, 0.7083)
+   - damage: 기존 (0.2516, 0.7815, 0.2823, 0.8037) → (0.2547, 0.7787, 0.2943, 0.8065)
+   - 데미지 ROI는 폭을 24px 늘려 3자리수(예: 340) 안정 인식
+
+2. 솔로 전용 템플릿 strip 신규 추가 (digit_templates_strip_solo.png)
+   - 솔로 결과화면의 큰 폰트(글자 높이 28px, 스쿼드4의 1.4배)에 맞춰 0~9 추출
+   - main.py와 동일한 Otsu 이진화 + INTER_AREA 다운스케일로 생성
+   - config.json recognizer.template_strip_solo 키로 경로 지정
+
+3. DigitTemplateMatcher 모드별 strip 로드 지원
+   - get_template_path / ensure_loaded 메서드에 mode 인자 추가
+   - solo 모드 호출 시 digit_templates_strip_solo.png 자동 로드
+   - 모드별 템플릿 캐시(_templates_cache_by_path)로 중복 로드 방지
+
+4. _prepare_band 솔로 모드 분기 추가 (핵심 버그 수정)
+   - 문제 1: vert_mask가 솔로 글자의 좌우 세로획을 박스 테두리로 오인하여 제거
+     → 솔로 글자 폭(14px)이 좁아 col_density가 임계값(0.85)에 걸렸던 것
+     → solo 모드에서는 vert_mask / horiz_mask 자체를 비활성화
+   - 문제 2: target_h(20px) 초과하는 글자 높이가 강제로 잘려나감
+     → 솔로 글자(28px)의 아래 1/3이 사라져 0이 5/6/8 등으로 오인되던 원인
+     → 글자 높이가 target_h를 초과하면 INTER_AREA로 비율 유지 다운스케일
+
+5. _recognize_squad4_rule에서 _prepare_band 호출 시 mode 전달
+   - 모드별 분기가 실제로 동작하도록 호출 측 수정
+
+[검증 결과]
+8장의 솔로(=스쿼드 모드 1인) 결과화면 OCR 테스트
+- 킬: 8/8 (100%) - 0/8 → 8/8
+- 딜: 8/8 (100%) - 2/8 → 8/8
+  (정답: 0/140, 1/277, 0/56, 0/340, 2/184, 0/227, 0/86, 0/97 모두 일치)
+
+[backward compatibility]
+- 모든 신규 인자는 default 값 유지 (mode=None 또는 "squad4")
+- mode=squad4 호출 흐름은 fix_a7과 동일 동작
+- 듀오/스쿼드3 모드도 영향 없음 (필요 시 다음 fix에서 점검)
+
+[알려진 후속 작업]
+- 듀오/스쿼드3 결과화면도 동일한 vert_mask 문제 가능성 → 차후 검증 필요
+- 솔로 자동 모드 감지는 박스 개수 기반이므로 PUBG의 "스쿼드" 텍스트 표시와 무관

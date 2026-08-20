@@ -1,0 +1,141 @@
+﻿PUBG 스트리머 헬퍼 fix_a21 패치노트
+=====================================
+[메인 목표]
+치킨 + 보너스 표시 사양 정정. 메인 카드와 기록 탭에서 표시 조건이
+체크박스/모드와 어긋나던 3개 버그 수정.
+
+[배경: 곡천님 보고]
+1. "킬 보너스 사용 체크 안한 채로 계산해도 팀 합산 킬수 카드에 +치킨 표시됨.
+   체크박스가 빠지면 표시 안되어야 함. 딜 보너스도 동일."
+2. "킬은 치킨 보너스(딜)가 계산식에서 빠졌다. 딜은 들어가는 거 확인했다."
+   → 백엔드 수식은 정상. 표시 라벨이 거짓말하는 게 본질.
+3. "기록에 치킨 여부가 안찍힌다. 킬 보너스 체크하든 안하든 전부 치킨 X로 표시."
+
+[발견한 3개 버그 위치]
+
+버그 A (메인 카드, 계산 직후) - ui/index.html 510줄 부근
+  옛 코드: hasChicken = r.is_chicken && (r.chicken_bonus > 0 || r.kill_bonus > 0)
+  문제:
+    - read_target 모드 무시하고 두 보너스를 OR로 묶음
+    - 킬 모드인데 chicken_bonus만 켜져 있어도 "+치킨" 라벨 표시
+    - 체크박스 OFF 사양과 어긋남
+
+버그 B (메인 카드, 카드 편집 후) - ui/index.html 824줄 부근
+  옛 코드: hasChicken = (r.chicken_bonus > 0 || r.kill_bonus > 0)
+  문제:
+    - 버그 A보다 나쁨. is_chicken 조건 자체가 빠져있음
+    - read_target 분기도 없음
+    - 백엔드 update_last_result 응답에 is_chicken 필드도 없었음
+
+버그 C (기록 탭) - ui/index.html 631~639줄 부근
+  옛 코드:
+    if (it.chicken_bonus > 0 && rt !== 'kill') → "+치킨 N"
+    else if (it.kill_bonus > 0 && rt === 'kill') → "+킬 N"
+    else → "치킨 X"
+  문제:
+    - is_chicken 필드를 안 보고 보너스 값으로 치킨 여부 추론
+    - 치킨인데 해당 모드 보너스가 OFF면 "치킨 X"로 잘못 표시
+    - 곡천님 시나리오: 치킨 + 킬 모드 + 킬 보너스 OFF → 화면 "치킨 X" ❌
+
+[변경 사양 (곡천님 합의)]
+
+메인 카드 (계산 직후 / 카드 편집 후) - 보너스 체크에 따라간다:
+  - 치킨 ✓ + 모드 보너스 ON + >0 → "+치킨" 표시
+  - 그 외 (체크 OFF, 치킨 아님) → 표시 안 함
+
+기록 탭 - 치킨이면 무조건 표시, 보너스 수치는 체크 ON일 때만:
+  - 치킨 ✓ + 모드 보너스 ON + >0 → "+치킨 1000" / "+킬 10" [기존 형식]
+  - 치킨 ✓ + 모드 보너스 OFF or 0 → "치킨" [신규]
+  - 치킨 ✗ → "치킨 X" [기존 형식]
+
+이모지: 메인 카드/기록 탭 모두 사용 안 함 (기존 텍스트 형식 유지).
+상태 메시지의 🍗 치킨!은 곡천님 지시 범위 밖이라 그대로 유지.
+
+[변경 사항]
+
+1. 메인 카드 + 치킨 표시 분기 (ui/index.html 510줄 부근)
+   하드 OR 묶기 제거, read_target 분기 적용:
+     hasChicken = r.is_chicken &&
+                  (rt === 'kill' ? (r.kill_bonus > 0) : (r.chicken_bonus > 0))
+   - 킬 모드 → kill_bonus만 본다
+   - 딜/both 모드 → chicken_bonus만 본다
+   - 체크 OFF 시 백엔드가 0으로 보내므로 자연스럽게 숨겨짐
+
+2. 카드 편집 후 + 치킨 표시 분기 (ui/index.html 824줄 부근)
+   메인 카드와 동일 사양 적용. is_chicken 조건 추가.
+
+3. update_last_result 응답에 is_chicken 추가 (main.py 3672줄 부근)
+   - 카드 편집 후에도 정확한 분기 가능
+   - getattr(self, "_last_is_chicken", False) 사용 (안전)
+
+4. 기록 탭 chickenTag 분기 재작성 (ui/index.html 635~654줄)
+   - is_chicken 필드를 우선 판정 기준으로
+   - 치킨 ✓ + 보너스 적용 → "+치킨 N" / "+킬 N" (기존 형식 그대로)
+   - 치킨 ✓ + 보너스 미적용 → "치킨" (신규, 수치 없이)
+   - 치킨 ✗ → "치킨 X" (기존 형식 그대로)
+
+[변경 안 한 것 (회귀 안전)]
+- 백엔드 계산식 (final_damage / final_kill): 변경 없음. 원래 정상이었음.
+- DigitTemplateMatcher / score_result_screen / _shape_bonus / _calculate_impl: 변경 없음.
+- HistoryManager.add / update_latest: 변경 없음. is_chicken 필드는 a19부터 이미 저장됨.
+- F8/F9 핫키, ChzzkChatClient: 변경 없음.
+- a20 디버그 로그 + card_edit_enabled 토글: 그대로 유지 (시연 안전).
+
+→ OCR 회귀 테스트 baseline 그대로 유효.
+   실제로 a21에서 회귀 테스트 돌려서 PASS 52/52 변동 없음 확인.
+
+[검증 결과]
+
+회귀 테스트:
+  python tests/regression/run_regression.py
+  → PASS=52/52, baseline 변동 없음
+
+syntax:
+  - main.py: AST parse OK
+  - config.json: JSON parse OK
+
+수정 케이스 매트릭스 (수동 추적):
+
+치킨 ✓ + 딜 보너스 ON + 킬 보너스 OFF + read_target=damage:
+  메인 카드: "+치킨" 표시 ✓ (chicken_bonus=1000>0)
+  기록 탭:   "+치킨 1000"  ✓
+  최종값:    (total_damage + 1000) * mult ✓
+
+치킨 ✓ + 딜 보너스 ON + 킬 보너스 OFF + read_target=kill:
+  메인 카드: 표시 안 함 ✓ (kill_bonus=0, 버그 A 수정됨)
+  기록 탭:   "치킨" ✓ (신규 분기, 버그 C 수정됨)
+  최종값:    total_kill * mult (보너스 없음) ✓
+
+치킨 ✓ + 딜 보너스 OFF + 킬 보너스 ON + read_target=kill:
+  메인 카드: "+치킨" 표시 ✓ (kill_bonus>0)
+  기록 탭:   "+킬 10" ✓
+  최종값:    (total_kill + 10) * mult ✓
+
+치킨 ✓ + 두 보너스 모두 OFF + read_target=damage:
+  메인 카드: 표시 안 함 ✓ (chicken_bonus=0)
+  기록 탭:   "치킨" ✓ (신규)
+
+치킨 ✗ + read_target=damage:
+  메인 카드: 표시 안 함 ✓
+  기록 탭:   "치킨 X" ✓ (기존 형식)
+
+[알려진 한계]
+- 위 매트릭스는 코드 흐름 추적 기반이며 곡천님 실제 환경에서 재확인 필요.
+- 카드 편집 기능 자체는 a20과 동일 (hotfix 유지, card_edit_enabled 토글).
+  카드 편집 후 표시 분기만 a21에서 함께 수정.
+- 기존 기록(a20 시점에 쌓인 항목)은 is_chicken 필드는 있으나 표시 결과가
+  a21 사양으로 다시 평가됨 → 이게 의도된 동작 (오히려 옛 잘못된 라벨 정정).
+
+[backward compatibility]
+- 기존 설정 파일 그대로 사용 가능.
+- 기록 데이터 구조 변경 없음.
+- 백엔드 API 시그니처 변경 없음 (update_last_result 반환 dict에 is_chicken 추가만).
+- a20에서 켰던 card_edit_enabled 토글 유지.
+
+[남은 작업]
+- 곡천님 실전 재현으로 표시 매트릭스 확인
+- a20 카드 편집 디버깅 (events.log [JS]/[a20] 로그 수집 후 a22)
+- 솔로/듀오 50장 검증
+- QHD 환경 검증
+
+문서 끝.

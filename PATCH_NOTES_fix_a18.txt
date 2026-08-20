@@ -1,0 +1,229 @@
+﻿PUBG 스트리머 헬퍼 fix_a18 패치노트
+=====================================
+
+[메인 목표]
+3인 스쿼드(squad3) 모드를 명시적으로 "미구현" 상태로 표시.
+임시반영(0/6 정확도) 상태로 두면 사용자가 잘못된 OCR 결과를 보거나,
+auto 모드 자동 감지가 squad3로 잘못 판정될 때 squad4 OCR이 어긋난
+좌표로 동작해 가비지 결과가 송출될 위험이 있음.
+
+→ 드롭다운에서 회색 비활성화 + 호버 툴팁 "미구현 (개발중)"
+→ auto 감지든 수동 설정이든 squad3 진입 시 OCR 차단 게이트
+→ squad3 OCR 코드/ROI는 그대로 보존 (본격 작업 시 게이트만 풀면 됨)
+
+[버전 정리 안내]
+fix_a18 = fix_a17 베이스 + squad3 미구현 게이트.
+OCR 로직 변경 없음 → 회귀 테스트 baseline (스쿼드 52장 PASS) 그대로 유효.
+
+곡천님 패키징 규칙(zip 파일명과 내부 폴더명 일치):
+  zip = pubg_streamer_helper_1_0_fix_a18.zip
+  폴더 = pubg_streamer_helper_1.0_fix_a18/
+
+────────────────────────────────────────
+[변경 사항]
+────────────────────────────────────────
+
+1. UI 드롭다운 squad3 비활성화 (ui/index.html line 182)
+   - <option value="squad3" disabled title="미구현 (개발중)">3인 (스쿼드) — 개발중</option>
+   - HTML 표준 disabled 속성 → 회색 + 클릭 차단 (별도 CSS 불필요)
+   - title 속성 → 호버 시 OS 기본 툴팁 "미구현 (개발중)" 표시
+   - 옵션 라벨에도 "— 개발중" 추가 (호버 안 해도 보이게)
+
+2. UI init() 자동 보정 (ui/index.html line 318 부근)
+   - config에 game_mode: "squad3"가 박혀 있으면 자동으로 "squad4"로 전환
+   - py('set_game_mode', 'squad4') 호출로 백엔드 동기화
+   - 기존 사용자가 a13~a17 시점에 squad3 선택해뒀다면 a18 첫 실행 시 자동 정정
+
+3. WebApi.set_game_mode squad3 fallback (main.py 2552번 줄 부근)
+   - JS에서 어떤 경로로든 set_game_mode("squad3") 호출되면 squad4로 자동 전환
+   - event_logger에 경고 기록
+   - config 직접 편집해서 squad3 박은 사용자 보호
+
+4. _calculate_impl 진입 게이트 (main.py 2738번 줄 부근)
+   - 결과창 게이트(fix_a15) 통과 후, mode 결정 직후 squad3 차단
+   - auto 감지 결과가 squad3든 수동 설정이 squad3든 동일하게 차단
+   - 에러 메시지: "3인 스쿼드 모드는 아직 미구현입니다. 솔로/듀오/4인 스쿼드만 사용 가능합니다."
+   - event_logger에 차단 사유 + 감지 점수 기록
+
+5. squad3 OCR 코드/ROI 보존
+   - config.json의 squad3 ROI 좌표 그대로 (a13에서 임시반영한 값)
+   - main.py의 squad3 처리 로직 그대로
+   - 게이트만 풀면 즉시 본격 작업 가능
+
+────────────────────────────────────────
+[동작 시나리오]
+────────────────────────────────────────
+
+설정 탭에서 모드 드롭다운 열기:
+  - "3인 (스쿼드) — 개발중" 옵션이 회색으로 표시됨
+  - 마우스 올리면 OS 툴팁 "미구현 (개발중)" 표시
+  - 클릭해도 선택 안 됨
+
+이전 버전(a13~a17)에서 squad3 선택해둔 사용자가 a18 첫 실행:
+  - init()이 squad3 → squad4로 자동 보정
+  - config 동기화도 자동
+  - 사용자 입장에선 그냥 "어, 모드가 4인 스쿼드로 되어있네" 정도
+
+auto 모드 사용자가 squad3 게임을 OCR 시도:
+  - 결과창 게이트는 통과 (정상 결과창이므로)
+  - 자동 감지가 "squad3"로 판정
+  - squad3 차단 게이트가 OCR 스킵
+  - "3인 스쿼드 모드는 아직 미구현입니다" 에러 반환
+  - events.log에 차단 기록
+
+config 직접 편집해서 game_mode: "squad3"로 박은 사용자가 OCR 시도:
+  - _calculate_impl의 squad3 차단 게이트가 OCR 스킵
+  - 동일 에러 메시지 반환
+
+────────────────────────────────────────
+[검증 결과]
+────────────────────────────────────────
+
+코드 검증:
+  - main.py syntax check: PASS
+  - main.py / ui/index.html 양쪽 반영 grep 검수: PASS
+  - 회귀 테스트: OCR 로직 변경 없음 → 영향 없음 (스쿼드 52장 baseline 그대로)
+  - .bat / .iss / 한글 .txt UTF-8 BOM + CRLF 정규화: PASS
+
+실측 검증 필요 (곡천님 환경):
+  - UI에서 squad3 옵션이 회색 + 클릭 안 됨 확인
+  - 마우스 올리면 "미구현 (개발중)" 툴팁 뜨는지 확인
+  - 다른 모드(solo/duo/squad4) 정상 동작 확인 (회귀 없음)
+
+────────────────────────────────────────
+[★★★ 패키징 시 반드시 챙길 것 - 파일 인코딩/줄바꿈]
+────────────────────────────────────────
+
+(a17에서 박제됨 - 다음 채팅의 나에게)
+
+배경:
+  Claude는 리눅스 환경에서 파일을 생성/수정하므로 기본 출력이
+  LF 줄바꿈 + UTF-8(BOM 없음)이 됨. Windows의 .bat / .iss / 한글 .txt는
+  이 기본값으로는 깨짐.
+
+규칙 (zip 만들기 직전 필수):
+  1. 모든 .bat / .iss → CRLF 줄바꿈
+  2. 한글 포함 파일 → UTF-8 BOM (EF BB BF) 추가
+  3. 한글 .txt (PATCH_NOTES, 사용안내, 빌드안내) → UTF-8 BOM + CRLF
+  4. ASCII만 있는 .bat도 CRLF는 필수
+
+자동 정규화 스크립트 (Python):
+
+  import glob, os
+  TARGETS = ['*.bat', '*.iss', 'PATCH_NOTES_*.txt',
+             '사용안내.txt', 'installer/*.bat', 'installer/*.iss',
+             'installer/설치파일_빌드_안내.txt']
+  files = []
+  for pat in TARGETS:
+      files.extend(glob.glob(pat))
+  for path in files:
+      if not os.path.exists(path):
+          continue
+      with open(path, 'rb') as f:
+          data = f.read()
+      if data.startswith(b'\xef\xbb\xbf'):
+          data = data[3:]
+      data = data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
+      data = b'\xef\xbb\xbf' + data
+      with open(path, 'wb') as f:
+          f.write(data)
+
+검증 명령:
+  for f in *.bat installer/*.bat installer/*.iss; do file "$f"; done
+  → "with CRLF line terminators" + "UTF-8 (with BOM) text" 확인
+
+────────────────────────────────────────
+[보류된 항목]
+────────────────────────────────────────
+
+▼ 솔로/듀오 50장 회귀 검증 [최우선 BLOCKING]
+   왜 보류: 캡처 데이터셋 자체가 아직 없음.
+   해제 조건: 곡천님이 솔로/듀오 결과창 50장씩 모은 뒤 zip 전달.
+
+▼ 스쿼드3 본격 OCR 작업 [a18에서 명시적 미구현 처리됨]
+   왜 보류: 캡처가 아직 1장 + 임시반영 6장(0/6)뿐. 본격 측정에 부족.
+   해제 조건: squad3 캡처 50장+ 수집 후.
+   해제 시 작업: _calculate_impl의 squad3 차단 게이트만 풀면 즉시 진행.
+                기존 ROI/OCR 코드는 a18에서도 보존되어 있음.
+   현재 상태: UI에서 회색 + 게이트로 차단 (잘못된 결과 송출 방지)
+
+▼ 자동 모드 감지 정확도 - squad4가 squad3로 잘못 감지되는 케이스
+   왜 보류: squad3 본격 작업과 같이 가야 효율적 (ROI 분리 작업이 묶임).
+   현재 회피: a18 게이트로 차단되어 가비지 송출은 막힘.
+              다만 사용자는 "결과 안 나옴" 경험하게 됨.
+
+▼ QHD/4K 캡처 게이트 임계값 적정성
+   왜 보류: QHD 캡처 데이터가 한 장도 없음.
+   현재 회피: config.json result_screen_min_score 키로 사용자 조정 가능.
+
+▼ 멀티 변형 voting (단일 자리 동점 자동 해결)
+   왜 보류: a15 _shape_bonus로 2/7 직접 해결. 솔로/듀오 검증 결과 봐야 판단.
+
+▼ 유료 배포 키 인증
+   왜 보류: 베타 안정화 단계라 시기상조.
+
+▼ 알려진 트리비얼 이슈 (영향 거의 없음)
+   - #5 save_config 동시성 문제 (실사용 거의 안 발생)
+   - #7 chat_message_format default 불일치 (트리비얼)
+
+────────────────────────────────────────
+[향후 우선순위]
+────────────────────────────────────────
+
+1순위 [BLOCKING] 솔로/듀오 50장 캡처 수집 + 검증
+2순위 [환경 검증] QHD/4K 환경 검증 + 게이트 임계값 미세조정
+3순위 [배포 안정성] 친구 PC 배포 안정성 테스트 (a18 setup.exe)
+4순위 [기능 확장] 스쿼드3 본격 작업 (캡처 50장+ 모인 후)
+5순위 [기능 확장] 멀티 변형 voting (필요시)
+6순위 [사업화] 유료 배포 키 인증 (베타 안정화 후)
+
+────────────────────────────────────────
+[대화 맥락 / 합의된 방향]
+────────────────────────────────────────
+
+- 작은 샘플 일반화 금지: 8장/10장/1장 샘플로 "100% 됐다" 보고 금지.
+  진짜 검증은 50장+ 단위.
+
+- 보고 톤: 솔직한 한계 명시 우선. "현재 X/Y인데 Z 패턴 깨질 수 있어요"
+  같이 우려 명시. 자신만만한 보고 후 실전에서 깨지면 곡천님 실망 큼.
+
+- 패키징 규칙 (절대 준수):
+  1. 파일 수정 시 fix 번호 +1 (덮어쓰기 금지)
+  2. zip 파일명과 내부 폴더명 일치
+  3. 이전 버전 파일 같이 묶지 않기
+  4. 파일 하나만 전달 (한 번에 여러 버전 X)
+
+- 패키징 전 필수 검수:
+  · main.py와 ui/index.html 양쪽 반영 확인 (grep/view)
+  · syntax 검증
+  · .bat 파일들 버전 표시 메시지 새 버전으로 갱신
+  · UTF-8 BOM + CRLF 정규화 (★★★ 위 섹션 참조)
+
+- 도구 대상: 곡천님 한 명이 아닌 모든 PUBG 스트리머용.
+  → FHD/QHD 모두 지원 + robust 필요.
+
+- 패치노트 작성 규칙 (a16부터 적용):
+  · 보류 항목 + 왜 보류했는지 + 해제 조건 같이 기록.
+  · 향후 우선순위 명시.
+  · 대화 맥락 / 합의된 방향 기록.
+
+- a18에서 squad3 처리 결정 (대화 기록):
+  · 곡천님이 "스쿼드4 결과는 엉망일텐데" 짚어줘서, 단순 fallback은
+    포기하고 명시적 차단 게이트로 결정.
+  · squad3 코드는 보존 (어차피 결국 구현해야 하니까).
+  · 본격 작업 시 게이트만 풀면 즉시 재개 가능.
+
+────────────────────────────────────────
+[backward compatibility]
+────────────────────────────────────────
+
+- WebApi.set_game_mode 시그니처 변경 없음 (squad3 입력은 squad4로 자동 전환)
+- detect_game_mode(), score_result_screen() 등 OCR API 변경 없음
+- config.json:
+  · 기존 사용자가 game_mode: "squad3"로 박혀 있어도 init()이 squad4로 자동 정정
+  · squad3 ROI 좌표 그대로 보존 (재작업 시 활용)
+- 회귀 테스트 baseline (스쿼드 52장) 그대로 유효
+- digit_templates_strip*.png 변경 없음
+- 트레이 기능 (a17) 그대로 동작
+
+문서 끝.
