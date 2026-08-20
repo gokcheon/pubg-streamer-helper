@@ -1,0 +1,119 @@
+﻿PUBG 스트리머 헬퍼 fix_a25 패치노트
+=====================================
+[메인 목표]
+기록 영속화 (history.json 디스크 저장).
+앱 종료/재시작 시 사라지던 기록 20건이 다음 실행 때도 그대로 유지.
+
+[배경: 곡천님 보고]
+"앱이 꺼졌다 켜지면 기록이 날라간다..."
+
+코드 확인 결과 a19 도입 시점부터 HistoryManager가 메모리에만 보관하는 설계.
+주석에는 "메모리 보관, 앱 재시작 시 사라짐 (인게임 기록과 동일 정책)"으로
+의도된 동작이라 명시돼 있었으나, 곡천님 실사용에서 불편 → 영속화 정책으로 전환.
+
+곡천님 정책 선택:
+  - 모든 기록 영속 저장 (송출 여부 무관, 옵션 1 선택)
+  - 최근 20건 유지 (기존 MAX_ITEMS 그대로)
+  - 시간 표시는 HH:MM 그대로 (날짜 없음)
+  - 재시작 직후 이전 기록 의도치 않게 수정·송출 차단 (옵션 B 선택)
+
+[변경 사항]
+
+1. HISTORY_PATH 정의 추가 (main.py 239/268줄, frozen/source 양쪽)
+   RUNTIME_BASE_DIR / "history.json"
+   config.json과 동일 디렉토리에 저장.
+
+2. save_history / load_history 함수 추가 (main.py 1075~1115줄 부근)
+   - save_history: atomic write (tmp 파일 → os.replace)로 부분 쓰기 방지
+   - load_history: 파일 없거나 깨졌으면 빈 리스트 반환 (앱 시작 막지 않음)
+   - 필수 키 (id, players) 누락 항목은 자동 제외
+   - 형식: {"version": 1, "items": [...]}
+
+3. HistoryManager 클래스 변경 (main.py 396줄)
+   - __init__: load_history()로 디스크 자동 로드
+   - next_id: 로드된 항목들의 max(id)+1로 복원 (충돌 방지)
+   - _session_dirty 플래그 신설: 이번 실행에서 add() 호출됐는가
+   - is_session_dirty() 메서드 신설: 호출부에서 가드용으로 사용
+   - _save_silent() 헬퍼: 저장 실패해도 앱 동작 막지 않음
+   - add() / mark_sent_latest() / mark_sent_by_id() / update_latest() 안에서
+     변경 직후 _save_silent() 호출 → 모든 변경이 즉시 디스크 반영
+   - error_logger 인자 추가 (저장 실패 시 errors.log 기록용)
+
+4. 세션 락 가드 추가 (호출부 2곳)
+   곡천님 정책 B: 재시작 직후 F8 한 번도 안 눌렸으면 이전 기록 손대지 못하게.
+
+   - update_last_result (main.py 3733줄 부근, 카드 편집)
+     is_session_dirty()=False면 즉시 반환:
+       "이번 실행에서 F8을 한 번도 안 눌렀습니다. 새 OCR 후 수정 가능합니다."
+
+   - manual_send (main.py 3641줄 부근, F9 / 수동 송출)
+     is_session_dirty()=False면 "전송할 결과가 없습니다" 반환.
+     기존 _last_* 자연 가드와 별도로 명시 추가.
+
+   - dispatch_auto_send: 별도 가드 불필요.
+     _pending_auto_send_message가 add() 직후에만 채워지므로 자연 차단.
+
+[변경 안 한 것 (회귀 안전)]
+- DigitTemplateMatcher / score_result_screen / _shape_bonus / _calculate_impl: 변경 없음
+- ChzzkChatClient / 토큰 갱신: 변경 없음
+- F8 / F9 핫키: 변경 없음
+- a20 디버그 로그 / card_edit_enabled 토글: 그대로 유지
+- a21 +치킨 표시 분기: 그대로
+- a22 진단 로그 / save_config 호출: 그대로
+- a23 _ensure_bonus_keys 마이그레이션: 그대로
+- a24 카드 편집 캡 제거 / 입력 가드: 그대로
+
+→ OCR 회귀 테스트 baseline 그대로 유효 (52장 PASS).
+   실제 a25에서 회귀 돌려서 PASS 52/52 변동 없음 확인.
+
+[검증 결과]
+
+코드 검증:
+  - syntax: main.py AST parse OK, config.json JSON parse OK
+  - HISTORY_PATH 양쪽 분기 정의 확인 (frozen/source)
+  - save_history/load_history 함수 정의 확인
+  - HistoryManager 변경 5개 지점 (is_session_dirty, _save_silent, __init__, add, mark_*) 모두 박힘
+  - 세션 락 가드 호출부 2곳 (update_last_result, manual_send) 박힘
+  - 회귀 테스트 PASS 52/52, baseline 변동 없음
+
+영속화 시뮬레이션 (HistoryManager 분리 추출 테스트):
+  - 시나리오 1 (첫 세션, 빈 상태): 항목 0, dirty=False ✓
+  - 시나리오 2 (F8 두 번): 항목 2, dirty=True, 디스크 저장됨 ✓
+  - 시나리오 3 (재시작 시뮬레이션): 항목 2 로드, dirty=False, next_id=3 ✓
+  - 시나리오 4 (락 풀림 후 동작): add → dirty=True, mark_sent_latest 정상 ✓
+  - 시나리오 5 (MAX_ITEMS 초과): 25개 add → 20개로 캡 ✓
+
+[기대 동작]
+
+곡천님 사용 시나리오:
+  - 어제 게임 5번 F8 → 기록 5개 → 앱 종료 → 오늘 앱 켬
+  - 기록 탭 열면 어제 5개 그대로 보임 ✓
+  - 카드 더블클릭 시도하면 백엔드에서 차단:
+      "이번 실행에서 F8을 한 번도 안 눌렀습니다."
+  - F9 누르면 "전송할 결과가 없습니다"
+  - 어제 기록 재전송 버튼 누르면 정상 동작 (mark_sent_by_id는 락 무관)
+  - 오늘 F8 한 번 눌리면 → 락 풀림 → 카드 편집/F9 모두 정상
+
+[알려진 한계]
+- 시간 표시가 HH:MM만 → 어제 14:32와 오늘 14:32가 시각적으로 동일.
+  곡천님이 "시간은 표시 안 해도 될 것 같다"고 하셨으니 의도된 동작.
+- history.json 깨지면 (수동 수정 실수, 디스크 오류 등) 빈 리스트로 시작.
+  errors.log엔 기록되지만 사용자에게 별도 알림 없음.
+- save_history는 매 add/mark_sent/update_latest 호출 시 디스크 I/O 발생.
+  20건 정도면 미미하지만, 만약 향후 항목이 많아지면 batch flush 고려 필요.
+- 곡천님 PC의 dist/history.json은 a25 첫 실행 시점에 생성됨.
+  a24까지 실행한 기록은 메모리에만 있던 것이라 어차피 사라진 상태.
+  a25 첫 F8부터 영속화 시작.
+
+[backward compatibility]
+- 기존 config.json 그대로 사용
+- API 시그니처 변경 없음 (HistoryManager 생성자에 error_logger 추가는 기본값 None)
+- 기존 사용자 영향 없음 (history.json 없으면 빈 리스트로 시작)
+
+[남은 작업]
+- 솔로/듀오 50장 검증
+- QHD 환경 검증
+- 자동 모드 감지 (squad3 ROI 분리)
+- 다른 setter들의 save_config 누락 일관성 정리
+
+문서 끝.

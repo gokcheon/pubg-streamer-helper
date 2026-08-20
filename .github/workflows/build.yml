@@ -1,0 +1,68 @@
+# PUBG 스트리머 헬퍼 — 완전 자동 배포 (fix_a26, 보드게임 오버레이 fix33 방식 이식)
+# 올리기.bat 이 태그(fix_aNN)를 푸시하면, 깃허브의 윈도우 서버가 이 지시서대로
+# PyInstaller 빌드 → Inno Setup 설치마법사 → Releases 발행까지 한다.
+# 발행되는 순간 설치판 앱의 자동 업데이트(updater.py)가 감지한다.
+name: build-installer
+
+on:
+  push:
+    tags: ['fix_a*']
+
+permissions:
+  contents: write          # 릴리스 발행 권한 (자동 제공되는 GITHUB_TOKEN 사용 — 별도 토큰 불필요)
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: 소스 받기
+        uses: actions/checkout@v4
+
+      - name: 파이썬 준비 (곡천님 환경과 같은 3.11)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          python -m pip install -r requirements.txt
+
+      - name: 버전 확인 (version.py 단일 진실 = 태그와 일치해야 함)
+        shell: pwsh
+        run: |
+          $label = python version.py label
+          Write-Host "version.py label = $label / tag = ${{ github.ref_name }}"
+          if ($label -ne "${{ github.ref_name }}") { throw "version.py 의 APP_LABEL($label) 과 태그(${{ github.ref_name }}) 가 달라요. version.py 를 고치고 다시 올려주세요." }
+
+      - name: exe 빌드 (PyInstaller — build_exe.bat 5단계와 동일한 옵션)
+        run: >
+          python -m PyInstaller --noconfirm --clean --onedir --noconsole --name pubg_streamer_helper --icon app.ico
+          --add-data "config.default.json;." --add-data "app.ico;."
+          --add-data "digit_templates_strip.png;." --add-data "digit_templates_strip_solo.png;." --add-data "digit_templates_strip_duo.png;."
+          --add-data "ui;ui" --add-data "메뉴얼.html;." --add-data "업데이트주소.txt;."
+          --hidden-import pystray._win32 --hidden-import PIL.Image main.py
+
+      - name: Inno Setup 설치
+        run: choco install innosetup -y --no-progress
+
+      - name: 설치마법사 만들기 (버전은 version.py 에서)
+        shell: pwsh
+        run: |
+          $ver = python version.py
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q /DAppVer=$ver installer\installer.iss
+          Rename-Item 'dist_installer\pubg_streamer_helper_setup.exe' "pubg_streamer_helper_setup_${{ github.ref_name }}.exe"
+
+      - name: 릴리스 설명 준비 (패치노트 동봉)
+        shell: pwsh
+        run: |
+          $f = "PATCH_NOTES_${{ github.ref_name }}.txt"
+          if (Test-Path $f) { Copy-Item $f release_body.txt }
+          else { Set-Content release_body.txt "PUBG 스트리머 헬퍼 ${{ github.ref_name }}" -Encoding utf8 }
+
+      - name: 릴리스 발행 (자동 업데이트가 여기를 봐요)
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release_body.txt
+          files: dist_installer/pubg_streamer_helper_setup_${{ github.ref_name }}.exe

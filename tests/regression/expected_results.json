@@ -1,0 +1,1432 @@
+{
+  "_meta": {
+    "description": "fix_a15 회귀 테스트 baseline (50장 valid + 2장 invalid)",
+    "created": "2026-04-28",
+    "fix_version": "fix_a15",
+    "total": 52,
+    "pass": 52,
+    "fail": 0
+  },
+  "results": {
+    "1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 1,
+        "gated": false,
+        "screen_score": 0.2196,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 1,
+            "damage": 90
+          },
+          {
+            "kill": 2,
+            "damage": 282
+          },
+          {
+            "kill": 0,
+            "damage": 100
+          },
+          {
+            "kill": 2,
+            "damage": 295
+          }
+        ]
+      }
+    },
+    "2.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 2,
+        "gated": false,
+        "screen_score": 0.1796,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 187
+          },
+          {
+            "kill": 0,
+            "damage": 233
+          },
+          {
+            "kill": 1,
+            "damage": 197
+          }
+        ]
+      }
+    },
+    "20260415_000944_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 3,
+        "gated": false,
+        "screen_score": 0.2066,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 1,
+            "damage": 371
+          },
+          {
+            "kill": 3,
+            "damage": 404
+          },
+          {
+            "kill": 0,
+            "damage": 64
+          },
+          {
+            "kill": 3,
+            "damage": 428
+          }
+        ]
+      }
+    },
+    "20260415_004455_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 4,
+        "gated": false,
+        "screen_score": 0.2266,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 4,
+            "damage": 357
+          },
+          {
+            "kill": 5,
+            "damage": 643
+          },
+          {
+            "kill": 6,
+            "damage": 959
+          },
+          {
+            "kill": 2,
+            "damage": 171
+          }
+        ]
+      }
+    },
+    "20260415_210551_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 5,
+        "gated": false,
+        "screen_score": 0.2197,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 435
+          },
+          {
+            "kill": 1,
+            "damage": 218
+          },
+          {
+            "kill": 4,
+            "damage": 431
+          },
+          {
+            "kill": 2,
+            "damage": 225
+          }
+        ]
+      }
+    },
+    "20260415_212127_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 6,
+        "gated": false,
+        "screen_score": 0.1881,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 166
+          },
+          {
+            "kill": 2,
+            "damage": 237
+          },
+          {
+            "kill": 2,
+            "damage": 234
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "20260415_213437_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 7,
+        "gated": false,
+        "screen_score": 0.1211,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 19
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 46
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "20260415_232016_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 8,
+        "gated": false,
+        "screen_score": 0.1911,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 3,
+            "damage": 383
+          },
+          {
+            "kill": 1,
+            "damage": 83
+          },
+          {
+            "kill": 2,
+            "damage": 114
+          },
+          {
+            "kill": 0,
+            "damage": 20
+          }
+        ]
+      }
+    },
+    "20260416_235231_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 9,
+        "gated": false,
+        "screen_score": 0.1312,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 72
+          },
+          {
+            "kill": 1,
+            "damage": 71
+          },
+          {
+            "kill": 0,
+            "damage": 148
+          }
+        ]
+      }
+    },
+    "20260417_000428_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 10,
+        "gated": false,
+        "screen_score": 0.2212,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 3,
+            "damage": 275
+          },
+          {
+            "kill": 1,
+            "damage": 356
+          },
+          {
+            "kill": 3,
+            "damage": 322
+          },
+          {
+            "kill": 0,
+            "damage": 284
+          }
+        ]
+      }
+    },
+    "20260417_002622_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 11,
+        "gated": false,
+        "screen_score": 0.2018,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 4,
+            "damage": 255
+          },
+          {
+            "kill": 0,
+            "damage": 138
+          },
+          {
+            "kill": 0,
+            "damage": 83
+          },
+          {
+            "kill": 2,
+            "damage": 244
+          }
+        ]
+      }
+    },
+    "20260417_010047_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 12,
+        "gated": false,
+        "screen_score": 0.1766,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 172
+          },
+          {
+            "kill": 0,
+            "damage": 100
+          },
+          {
+            "kill": 2,
+            "damage": 250
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "20260417_011927_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 13,
+        "gated": false,
+        "screen_score": 0.2208,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 3,
+            "damage": 275
+          },
+          {
+            "kill": 1,
+            "damage": 356
+          },
+          {
+            "kill": 3,
+            "damage": 322
+          },
+          {
+            "kill": 0,
+            "damage": 284
+          }
+        ]
+      }
+    },
+    "20260417_011939_full.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 14,
+        "gated": false,
+        "screen_score": 0.2015,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 4,
+            "damage": 255
+          },
+          {
+            "kill": 0,
+            "damage": 138
+          },
+          {
+            "kill": 0,
+            "damage": 83
+          },
+          {
+            "kill": 2,
+            "damage": 244
+          }
+        ]
+      }
+    },
+    "20260420_010402_709636_screen.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 15,
+        "gated": false,
+        "screen_score": 0.1546,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 1,
+            "damage": 407
+          },
+          {
+            "kill": 0,
+            "damage": 71
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 68
+          }
+        ]
+      }
+    },
+    "20260427_180730_075252_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 16,
+        "gated": false,
+        "screen_score": 0.2152,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 757
+          },
+          {
+            "kill": 4,
+            "damage": 328
+          },
+          {
+            "kill": 1,
+            "damage": 132
+          },
+          {
+            "kill": 0,
+            "damage": 152
+          }
+        ]
+      }
+    },
+    "20260427_183350_873557_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 17,
+        "gated": false,
+        "screen_score": 0.2023,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 626
+          },
+          {
+            "kill": 1,
+            "damage": 124
+          },
+          {
+            "kill": 0,
+            "damage": 421
+          },
+          {
+            "kill": 0,
+            "damage": 79
+          }
+        ]
+      }
+    },
+    "20260427_195819_179029_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 18,
+        "gated": false,
+        "screen_score": 0.1649,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 65
+          },
+          {
+            "kill": 0,
+            "damage": 23
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 200
+          }
+        ]
+      }
+    },
+    "20260427_214656_363434_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 19,
+        "gated": false,
+        "screen_score": 0.1942,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 2,
+            "damage": 291
+          },
+          {
+            "kill": 4,
+            "damage": 356
+          },
+          {
+            "kill": 0,
+            "damage": 108
+          }
+        ]
+      }
+    },
+    "20260427_221030_364960_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 20,
+        "gated": false,
+        "screen_score": 0.1502,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 3,
+            "damage": 273
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 124
+          }
+        ]
+      }
+    },
+    "20260428_011029_002614_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 21,
+        "gated": false,
+        "screen_score": 0.1569,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 54
+          },
+          {
+            "kill": 0,
+            "damage": 94
+          },
+          {
+            "kill": 0,
+            "damage": 114
+          },
+          {
+            "kill": 0,
+            "damage": 41
+          }
+        ]
+      }
+    },
+    "20260428_011043_401257_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 22,
+        "gated": false,
+        "screen_score": 0.1569,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 54
+          },
+          {
+            "kill": 0,
+            "damage": 94
+          },
+          {
+            "kill": 0,
+            "damage": 114
+          },
+          {
+            "kill": 0,
+            "damage": 41
+          }
+        ]
+      }
+    },
+    "20260428_013448_602230_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 23,
+        "gated": false,
+        "screen_score": 0.2147,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 200
+          },
+          {
+            "kill": 2,
+            "damage": 194
+          },
+          {
+            "kill": 2,
+            "damage": 375
+          },
+          {
+            "kill": 0,
+            "damage": 28
+          }
+        ]
+      }
+    },
+    "20260428_015753_801050_steam.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 24,
+        "gated": false,
+        "screen_score": 0.2278,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 269
+          },
+          {
+            "kill": 1,
+            "damage": 155
+          },
+          {
+            "kill": 4,
+            "damage": 531
+          },
+          {
+            "kill": 0,
+            "damage": 109
+          }
+        ]
+      }
+    },
+    "3.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 25,
+        "gated": false,
+        "screen_score": 0.2485,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 4,
+            "damage": 614
+          },
+          {
+            "kill": 8,
+            "damage": 875
+          },
+          {
+            "kill": 21,
+            "damage": 1348
+          },
+          {
+            "kill": 4,
+            "damage": 406
+          }
+        ]
+      }
+    },
+    "4.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 26,
+        "gated": false,
+        "screen_score": 0.1816,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 1,
+            "damage": 183
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 4,
+            "damage": 503
+          },
+          {
+            "kill": 1,
+            "damage": 73
+          }
+        ]
+      }
+    },
+    "578080_20260420002119_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 27,
+        "gated": false,
+        "screen_score": 0.1911,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 369
+          },
+          {
+            "kill": 1,
+            "damage": 126
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 145
+          }
+        ]
+      }
+    },
+    "578080_20260420002145_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 28,
+        "gated": false,
+        "screen_score": 0.1911,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 369
+          },
+          {
+            "kill": 1,
+            "damage": 126
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 145
+          }
+        ]
+      }
+    },
+    "578080_20260420004210_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 29,
+        "gated": false,
+        "screen_score": 0.1549,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 1,
+            "damage": 407
+          },
+          {
+            "kill": 0,
+            "damage": 71
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 68
+          }
+        ]
+      }
+    },
+    "578080_20260420012823_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 30,
+        "gated": false,
+        "screen_score": 0.155,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 1,
+            "damage": 123
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 67
+          },
+          {
+            "kill": 0,
+            "damage": 33
+          }
+        ]
+      }
+    },
+    "578080_20260420013848_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 31,
+        "gated": false,
+        "screen_score": 0.1124,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 100
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260420020456_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 32,
+        "gated": false,
+        "screen_score": 0.2203,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 5,
+            "damage": 685
+          },
+          {
+            "kill": 0,
+            "damage": 62
+          },
+          {
+            "kill": 2,
+            "damage": 272
+          },
+          {
+            "kill": 4,
+            "damage": 375
+          }
+        ]
+      }
+    },
+    "578080_20260420022109_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 33,
+        "gated": false,
+        "screen_score": 0.1434,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 2,
+            "damage": 247
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 2,
+            "damage": 161
+          }
+        ]
+      }
+    },
+    "578080_20260420022132_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 34,
+        "gated": false,
+        "screen_score": 0.1434,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 2,
+            "damage": 247
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 2,
+            "damage": 161
+          }
+        ]
+      }
+    },
+    "578080_20260420024246_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 35,
+        "gated": false,
+        "screen_score": 0.1555,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 283
+          },
+          {
+            "kill": 1,
+            "damage": 100
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260420025918_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 36,
+        "gated": false,
+        "screen_score": 0.1657,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 2,
+            "damage": 208
+          },
+          {
+            "kill": 0,
+            "damage": 79
+          },
+          {
+            "kill": 2,
+            "damage": 371
+          }
+        ]
+      }
+    },
+    "578080_20260420204328_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 37,
+        "gated": false,
+        "screen_score": 0.1502,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 4,
+            "damage": 243
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 126
+          }
+        ]
+      }
+    },
+    "578080_20260421050008_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 38,
+        "gated": false,
+        "screen_score": 0.1164,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 94
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 21
+          }
+        ]
+      }
+    },
+    "578080_20260421050652_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 39,
+        "gated": false,
+        "screen_score": 0.16,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 153
+          },
+          {
+            "kill": 1,
+            "damage": 100
+          },
+          {
+            "kill": 1,
+            "damage": 77
+          },
+          {
+            "kill": 0,
+            "damage": 6
+          }
+        ]
+      }
+    },
+    "578080_20260421050708_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 40,
+        "gated": false,
+        "screen_score": 0.2013,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 153
+          },
+          {
+            "kill": 1,
+            "damage": 100
+          },
+          {
+            "kill": 1,
+            "damage": 108
+          },
+          {
+            "kill": 0,
+            "damage": 24
+          }
+        ]
+      }
+    },
+    "578080_20260421051122_1.png": {
+      "status": "PASS",
+      "detail": "gated correctly (score=0.0669)",
+      "raw": {
+        "idx": 41,
+        "gated": true,
+        "screen_score": 0.0669,
+        "detected_mode": "squad3"
+      }
+    },
+    "578080_20260421051122_2.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 42,
+        "gated": false,
+        "screen_score": 0.1008,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 1,
+            "damage": 55
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260421051711_1.png": {
+      "status": "PASS",
+      "detail": "gated correctly (score=0.049)",
+      "raw": {
+        "idx": 43,
+        "gated": true,
+        "screen_score": 0.049,
+        "detected_mode": "squad3"
+      }
+    },
+    "578080_20260421051715_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 44,
+        "gated": false,
+        "screen_score": 0.1331,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 92
+          },
+          {
+            "kill": 2,
+            "damage": 134
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260421052301_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 45,
+        "gated": false,
+        "screen_score": 0.1763,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 23
+          },
+          {
+            "kill": 1,
+            "damage": 265
+          },
+          {
+            "kill": 3,
+            "damage": 540
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260421052759_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 46,
+        "gated": false,
+        "screen_score": 0.1128,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 128
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260421053430_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 47,
+        "gated": false,
+        "screen_score": 0.1226,
+        "detected_mode": "squad3",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 125
+          },
+          {
+            "kill": 0,
+            "damage": 0
+          }
+        ]
+      }
+    },
+    "578080_20260421054150_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 48,
+        "gated": false,
+        "screen_score": 0.1578,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 0
+          },
+          {
+            "kill": 0,
+            "damage": 82
+          },
+          {
+            "kill": 0,
+            "damage": 159
+          },
+          {
+            "kill": 0,
+            "damage": 78
+          }
+        ]
+      }
+    },
+    "578080_20260421202155_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 49,
+        "gated": false,
+        "screen_score": 0.2509,
+        "detected_mode": "squad3",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 34
+          },
+          {
+            "kill": 1,
+            "damage": 75
+          },
+          {
+            "kill": 1,
+            "damage": 109
+          },
+          {
+            "kill": 1,
+            "damage": 100
+          }
+        ]
+      }
+    },
+    "578080_20260421202851_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 50,
+        "gated": false,
+        "screen_score": 0.278,
+        "detected_mode": "squad3",
+        "slots": [
+          {
+            "kill": 0,
+            "damage": 50
+          },
+          {
+            "kill": 1,
+            "damage": 247
+          },
+          {
+            "kill": 0,
+            "damage": 74
+          },
+          {
+            "kill": 1,
+            "damage": 141
+          }
+        ]
+      }
+    },
+    "578080_20260423022321_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 51,
+        "gated": false,
+        "screen_score": 0.229,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 5,
+            "damage": 501
+          },
+          {
+            "kill": 1,
+            "damage": 193
+          },
+          {
+            "kill": 3,
+            "damage": 538
+          },
+          {
+            "kill": 2,
+            "damage": 281
+          }
+        ]
+      }
+    },
+    "578080_20260423025006_1.png": {
+      "status": "PASS",
+      "detail": "all slots match",
+      "raw": {
+        "idx": 52,
+        "gated": false,
+        "screen_score": 0.2335,
+        "detected_mode": "squad4",
+        "slots": [
+          {
+            "kill": 2,
+            "damage": 205
+          },
+          {
+            "kill": 4,
+            "damage": 429
+          },
+          {
+            "kill": 2,
+            "damage": 453
+          },
+          {
+            "kill": 5,
+            "damage": 547
+          }
+        ]
+      }
+    }
+  }
+}

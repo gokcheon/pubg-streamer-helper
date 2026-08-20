@@ -1,0 +1,48 @@
+﻿PUBG 스트리머 헬퍼 fix_a10 패치노트
+=====================================
+
+[메인 목표]
+빌드 스크립트 누락 수정 - fix_a8에서 추가한 솔로 strip이 PyInstaller 빌드 시
+포함되지 않던 문제 해결
+
+[배경]
+fix_a8에서 솔로 모드 OCR 정확도를 위해 digit_templates_strip_solo.png 를 추가했지만,
+build_exe.bat 의 --add-data 인자에는 이 파일을 포함시키지 못했음.
+그 결과:
+  - 개발 환경 (python main.py 직접 실행): 정상 작동 (파일이 폴더에 있으니까)
+  - PyInstaller 빌드 (build_exe.bat): 빌드된 exe에 이 파일이 누락
+    → 빌드된 앱이 솔로 strip을 못 찾고 RuntimeError 발생 가능
+
+이 누락은 a8 직후 발견됐어야 했는데, fix_a9 작업이 점검/보강 위주라
+실제 PyInstaller 빌드 검증을 못 해서 a10에서야 발견.
+
+[변경 사항]
+
+1. build_exe.bat 의 PyInstaller --add-data 에 digit_templates_strip_solo.png 추가
+   - 이전: --add-data "digit_templates_strip.png;." 만 있음
+   - 이후: --add-data "digit_templates_strip.png;." --add-data "digit_templates_strip_solo.png;."
+
+2. build_exe.bat 헤더 버전 표시: fix_a7 → fix_a10
+
+3. build_exe.bat 빌드 완료 메시지의 검증 항목에 솔로 strip 경로 추가
+
+4. package_dist.bat 버전 표시 + zip 파일명 패턴 fix_a7 → fix_a10
+
+[main.py / config.json / index.html]
+변경 없음. 코드 로직은 fix_a9와 100% 동일.
+
+[검증 결과]
+- 솔로 OCR 회귀 검증: 8/8 (100%) - fix_a9와 동일
+- build_exe.bat 의 --add-data 인자 검증
+- package_dist.bat 의 zip 명명 규칙 검증
+
+[주의 사항]
+PyInstaller 빌드 (build_exe.bat) 를 실행한 적이 있다면 이번 a10 부터는 반드시
+새로 빌드해야 합니다. 기존 dist 폴더는 솔로 strip이 빠진 상태이므로
+삭제하고 재빌드 권장.
+
+[backward compatibility]
+- 코드 로직 변경 없음
+- config.json 스키마 변경 없음
+- 사용자 액션 없이 a9 → a10 직접 업그레이드 가능
+- 다만 PyInstaller 빌드는 반드시 재실행 필요

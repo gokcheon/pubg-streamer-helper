@@ -1,0 +1,123 @@
+﻿PUBG 스트리머 헬퍼 fix_a23 패치노트
+=====================================
+[메인 목표]
+킬 보너스를 딜 보너스와 완전 대칭으로 작동시킨다.
+a22 진단 로그로 원인 확정 → 핀포인트 패치.
+
+[a22 진단 결과]
+곡천님 events.log 한 줄:
+  [a22] 보너스 진단(_calculate_impl): is_chicken=True
+    chicken_enabled=True chicken_damage_cfg=1000 → chicken_bonus=1000 |
+    kill_enabled=True kill_count_cfg=0 → kill_bonus=0 | read_target=kill
+
+킬 체크는 ON인데 kill_count_cfg=0 → kill_bonus=0.
+딜 측은 chicken_damage_cfg=1000으로 잘 박혀 있음.
+
+[원인 (코드 직접 비교로 확정)]
+딜과 킬 보너스 처리에서 **2가지 비대칭** 발견.
+
+(1) config.json 기본값 누락
+  딜 측: "chicken_bonus_enabled": true, "chicken_bonus_damage": 1000 둘 다 존재
+  킬 측: "kill_bonus_enabled", "kill_bonus_count" **둘 다 키 자체가 없음**
+
+  → 곡천님이 보너스 킬수 입력칸을 한 번도 안 만지면 set_kill_bonus_count
+    자체가 호출되지 않아 self.config["kill_bonus_count"]는 영원히 미정 상태.
+    _calculate_impl에서 self.config.get("kill_bonus_count", 0) → 0.
+
+(2) get_config의 enabled 기본값 비대칭
+  딜 측: bool(self.config.get("chicken_bonus_enabled", True))   ← True
+  킬 측: bool(self.config.get("kill_bonus_enabled", False))     ← False
+
+  → UI 첫 로드 시 킬 보너스 체크박스만 OFF 상태로 시작.
+    사용자가 직접 켜야만 작동.
+
+곡천님 보고: "딜이랑 똑같이 작동하게 만들어주라"
+→ 두 비대칭 모두 딜 정책으로 통일.
+
+[변경 사항]
+
+1. config.json에 kill_bonus 기본값 추가
+   "kill_bonus_enabled": true,
+   "kill_bonus_count": 10
+   → 딜 측과 완전 대칭 (chicken_bonus_enabled: true, chicken_bonus_damage: 1000)
+
+2. get_config kill_bonus_enabled 기본값 False → True (main.py 2815줄)
+   → 딜 측과 동일
+
+3. _ensure_bonus_keys 마이그레이션 함수 추가 (main.py 947줄 부근)
+   load_config 직후 호출. 누락된 보너스 키 4개를 기본값으로 채우고
+   디스크에 한 번 저장.
+
+   왜 필요한가:
+     a23 빌드를 곡천님 PC에 설치해도 dist/config.json이 a22 시점에
+     저장된 채로 남아있을 수 있음 (kill_bonus_* 키 누락 상태).
+     단순히 config.json 기본값만 바꿔도 그걸 곡천님 PC가 안 받아옴.
+     → load_config에서 누락분만 자동 보충하면 a23 첫 실행에 정상화.
+
+   안전성:
+     - 이미 키가 있으면 건드리지 않음 (사용자가 0으로 설정한 의도 존중)
+     - 새로 추가하는 4개 키만 손댐 (다른 키 무관)
+     - save_config 실패해도 메모리 dict는 채워졌으니 이번 세션은 정상
+
+[변경 안 한 것]
+- _calculate_impl의 fallback (get(..., 0)): 그대로 유지.
+  사용자가 의도적으로 0 입력하면 0으로 동작해야 함 (보너스 끄기 효과).
+  마이그레이션이 키를 채우면 fallback은 도달하지 않음.
+- update_last_result의 fallback도 동일 정책으로 유지.
+- a22 진단 로그 [a22] 그대로 유지 (kill_count_cfg=10 찍히는 것 확인용).
+- a22 save_config 호출 (4개 setter): 그대로 유지.
+- a20 카드 편집 토글 (card_edit_enabled): 그대로 유지.
+- a21 +치킨 표시 분기: 그대로 유지.
+- OCR 로직: 변경 없음.
+
+[검증 결과]
+- syntax: main.py AST parse OK, config.json JSON parse OK
+- 회귀 테스트: PASS=52/52, baseline 변동 없음
+- 마이그레이션 시뮬레이션 (곡천님 깨진 config 모방):
+    입력: kill_bonus_* 키 없음
+    결과: kill_bonus_enabled=True, kill_bonus_count=10 자동 채워짐
+- get_config 기본값 대칭성:
+    chicken_bonus_enabled: True ←→ kill_bonus_enabled: True
+    chicken_bonus_damage:  1000 ←→ kill_bonus_count:    10
+
+[곡천님 검증 절차]
+
+1. a23 빌드 받아 dist 교체
+
+2. 첫 실행 시 events.log 확인:
+   - 마이그레이션이 작동하면 dist/config.json에
+     "kill_bonus_enabled": true, "kill_bonus_count": 10 자동 추가됨
+   - config.json 직접 열어서 두 키 박혀 있는지 한 번 확인 가능
+
+3. 읽기 대상 = 킬, 치킨 케이스 한 번 F8
+
+4. 기대 결과 (배수=2 가정):
+   합계 카드: "+치킨 ×2 = (총킬+10)×2"
+   기록 탭: "+킬 10"
+   events.log [a22] 진단:
+     kill_enabled=True kill_count_cfg=10 → kill_bonus=10
+
+5. 만약 여전히 작동 안 하면 dist/config.json 캡처해서 다음 채팅에 첨부
+
+[알려진 한계]
+- a22 시점 곡천님 PC config가 잘못된 상태(kill_bonus_* 키 누락)인 것은
+  마이그레이션으로 자동 정상화되지만, **다른 잘못된 키가 있다면** 별도 조치 필요.
+- 마이그레이션은 한 번만 작동 (이미 키가 있으면 패스).
+  곡천님이 의도적으로 kill_bonus_count=0으로 설정하면 그대로 0 유지.
+- get_config 기본값 변경(False → True)은 새 사용자 첫 로드에만 영향.
+  기존 사용자는 자기 config 파일이 우선.
+- a22의 진단 로그 [a22]는 그대로 남아있음. 정상화 확인 후 a24에서
+  정리할지 곡천님 판단.
+
+[backward compatibility]
+- 기존 정상 사용자: 영향 없음 (이미 키 있는 케이스는 마이그레이션 패스)
+- a22까지 사용자: 자동 마이그레이션으로 정상화
+- API 시그니처 변경 없음
+
+[남은 작업]
+- 다른 setter들의 save_config 누락 일관성 정리 (a22에서 보너스 4개만 손댐)
+- a20 카드 편집 디버깅 (events.log [JS]/[a20] 수집 후)
+- 솔로/듀오 50장 검증
+- QHD 환경 검증
+
+문서 끝.
