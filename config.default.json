@@ -1,0 +1,261 @@
+{
+  "monitor_index": 1,
+  "cooldown_seconds": 3,
+  "scale_factor": 6,
+  "save_debug_images": false,
+  "output_format": "이번 판 팀합 {kills}킬 / {damage}딜",
+  "sanity": {
+    "max_damage_per_player": 10000,
+    "max_damage_per_player_by_mode": {
+      "solo": 6000,
+      "duo": 5000,
+      "squad3": 4500,
+      "squad4": 4000
+    },
+    "max_kill_per_player": 30
+  },
+  "ocr": {
+    "oem": 3,
+    "psm_candidates": [
+      6,
+      7,
+      8,
+      13
+    ],
+    "whitelist": "0123456789",
+    "border_px": 18,
+    "foreground_crop_margin": 8
+  },
+  "logging": {
+    "event_log": "logs/events.log",
+    "error_log": "logs/errors.log",
+    "max_bytes": 1048576,
+    "backup_count": 5
+  },
+  "modes": {
+    "squad4": {
+      "players": [
+        {
+          "damage": [
+            0.0417,
+            0.7241,
+            0.0729,
+            0.7463
+          ],
+          "kill": [
+            0.0417,
+            0.6481,
+            0.0729,
+            0.6778
+          ]
+        },
+        {
+          "damage": [
+            0.2938,
+            0.7241,
+            0.325,
+            0.7463
+          ],
+          "kill": [
+            0.2938,
+            0.6481,
+            0.325,
+            0.6778
+          ]
+        },
+        {
+          "damage": [
+            0.5453,
+            0.7241,
+            0.5771,
+            0.7463
+          ],
+          "kill": [
+            0.5453,
+            0.6481,
+            0.5771,
+            0.6778
+          ]
+        },
+        {
+          "damage": [
+            0.7974,
+            0.7241,
+            0.8297,
+            0.7463
+          ],
+          "kill": [
+            0.7974,
+            0.6481,
+            0.8297,
+            0.6778
+          ]
+        }
+      ]
+    },
+    "solo": {
+      "players": [
+        {
+          "kill": [
+            0.2547,
+            0.6806,
+            0.2839,
+            0.7083
+          ],
+          "damage": [
+            0.2547,
+            0.7787,
+            0.2943,
+            0.8065
+          ]
+        }
+      ],
+      "start_x": 5,
+      "start_x_damage": 8
+    },
+    "duo": {
+      "players": [
+        {
+          "kill": [
+            0.2812,
+            0.6537,
+            0.3281,
+            0.6741
+          ],
+          "damage": [
+            0.2812,
+            0.7259,
+            0.3281,
+            0.7463
+          ]
+        },
+        {
+          "kill": [
+            0.5573,
+            0.6537,
+            0.6042,
+            0.6741
+          ],
+          "damage": [
+            0.5573,
+            0.7259,
+            0.6042,
+            0.7463
+          ]
+        }
+      ],
+      "start_x": 5,
+      "start_x_damage": 8
+    },
+    "squad3": {
+      "players": [
+        {
+          "kill": [
+            0.1661,
+            0.6426,
+            0.1969,
+            0.6648
+          ],
+          "damage": [
+            0.1641,
+            0.7148,
+            0.1948,
+            0.737
+          ]
+        },
+        {
+          "kill": [
+            0.4193,
+            0.6426,
+            0.45,
+            0.6648
+          ],
+          "damage": [
+            0.4177,
+            0.7148,
+            0.4484,
+            0.737
+          ]
+        },
+        {
+          "kill": [
+            0.6729,
+            0.6426,
+            0.7036,
+            0.6648
+          ],
+          "damage": [
+            0.6714,
+            0.7148,
+            0.7021,
+            0.737
+          ]
+        }
+      ],
+      "start_x": 5,
+      "start_x_damage": 8
+    }
+  },
+  "save_roi_preview": false,
+  "hotkey": {
+    "enabled": true,
+    "display_name": "F12"
+  },
+  "chat": {
+    "enabled": false,
+    "client_id": "",
+    "client_secret": "",
+    "redirect_uri": "http://127.0.0.1:8785/chzzk/callback",
+    "auth_url": "https://chzzk.naver.com/account-interlock",
+    "api_base_url": "https://openapi.chzzk.naver.com",
+    "token_file": "chat_tokens.json"
+  },
+  "recognizer": {
+    "primary": "template",
+    "fallback_to_tesseract": true,
+    "template_strip": "digit_templates_strip.png",
+    "template_strip_solo": "digit_templates_strip_solo.png",
+    "digit_cell_width": 11,
+    "digit_cell_height": 20,
+    "digit_spacing_max": 2,
+    "min_avg_score": 0.48,
+    "shift_candidates": [
+      -1,
+      0,
+      1
+    ],
+    "binarize_threshold_bias": 0,
+    "squad4_start_x": 4,
+    "squad4_start_shift_candidates": [
+      0,
+      -1,
+      -2
+    ],
+    "squad4_min_final_score": 0.58,
+    "squad4_min_first_digit_score": 0.55,
+    "squad4_low_confidence_score": 0.55,
+    "squad4_beam_width_damage": 12,
+    "squad4_min_final_score_damage": 0.44,
+    "squad4_min_first_digit_score_damage": 0.42,
+    "squad4_damage_disable_ocr_fallback": true,
+    "squad4_damage_use_best_on_reject": true,
+    "squad4_damage_force_rule_only_in_damage_only": true,
+    "squad4_max_uncovered_damage": 0.22,
+    "squad4_max_leading_uncovered_damage": 0.18,
+    "template_strip_duo": "digit_templates_strip_duo.png"
+  },
+  "chicken_bonus_enabled": true,
+  "chicken_bonus_damage": 1000,
+  "kill_bonus_enabled": true,
+  "kill_bonus_count": 10,
+  "capture_mode": "screen",
+  "steam_screenshot_dir": "",
+  "steam_screenshot_delay": 0.8,
+  "steam_screenshot_hotkey": "f12",
+  "chat_message_format": "!미션 {합계}",
+  "save_screenshot": true,
+  "read_target": "damage",
+  "game_mode": "squad4",
+  "card_edit_enabled": false,
+  "manual_seen": false
+}

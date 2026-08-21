@@ -1,0 +1,103 @@
+﻿PUBG 스트리머 헬퍼 fix_a24 패치노트
+=====================================
+[메인 목표]
+카드 더블클릭 편집 입력 검증 + 캡 정책 분리.
+
+[배경: 곡천님 보고]
+1. 카드 편집 input 박스에 한글/공백/특수문자가 그대로 입력됨
+2. 스쿼드 카드 한 곳에 100을 입력했는데 합계가 32로 나옴
+   → max_kill_per_player=30 캡에 걸려서 30으로 잘림 (다른 카드 2 + 30 = 32)
+   → 곡천님 정책: "이론상 96킬도 안 나오지만 제한할 필요까진 없을 것 같다"
+   → 단, OCR 감지에서 30선은 정확도 위해 유지
+
+[근본 원인]
+update_last_result(카드 편집)에서 OCR과 동일한 sanity 캡을 적용하고 있었음.
+- _calculate_impl (OCR 단계): max_kill=30 캡 → garbage 차단용으로 의미 있음
+- update_last_result (사용자 명시 입력): 같은 캡이 오히려 사용자 의도를 막음
+
+곡천님 정책에 따라 분리:
+- OCR 단계: 캡 유지 (정확도 보장)
+- 카드 편집: 캡 제거 (사용자 입력 자유)
+
+input 박스 가드:
+- 한글 IME, 공백, 특수문자 모두 입력됨
+- type="text" + maxLength=6 외엔 차단 없었음
+
+[변경 사항]
+
+1. update_last_result 캡 제거 (main.py 3667줄 부근)
+   max_kill / max_damage 변수 자체 제거.
+   음수만 max(0, int(k))로 막고 상한은 두지 않음.
+
+   → 카드에 100, 999 등 입력하면 그대로 합산됨
+   → 사용자가 직접 입력한 의도 그대로 반영
+
+2. _calculate_impl 캡 유지 (main.py 3150줄 부근)
+   OCR 단계의 max_kill_per_player=30, max_damage_per_player 그대로.
+   "감지에선 30선 지키는 게 정확도 높인다"는 곡천님 정책 그대로.
+
+3. 카드 편집 input 다중 가드 추가 (ui/index.html 750줄 부근)
+   숫자 외 입력 차단:
+     a) inputmode="numeric": 모바일 숫자 키패드 + IME 회피 신호
+     b) pattern="[0-9]*": 모바일/일부 브라우저 보조
+     c) keypress 리스너: 비-숫자 한 글자 키 차단
+        (Enter/Backspace 등 제어 키는 keypress에 안 옴 → 통과)
+     d) input 리스너: 페이스트/IME 잔여물 즉시 정리 (regex로 비-숫자 제거)
+     e) compositionend 리스너: 한글 조합 종료 시 결과 정리
+
+   주의 (회귀 안전):
+   compositionstart에서 blur 호출하면 blur 리스너가 finish(true) 트리거해서
+   편집이 의도치 않게 종료됨. 그래서 IME 진행 자체는 막지 않고
+   compositionend 시점에 결과만 정리하는 방식.
+
+[변경 안 한 것 (회귀 안전)]
+- _calculate_impl OCR 캡: 그대로 (max_kill=30, max_damage)
+- HistoryManager: 변경 없음
+- update_last_result의 history.update_latest 흐름: 변경 없음
+- a20 디버그 로그 / card_edit_enabled 토글: 그대로 유지
+- a21 +치킨 표시 분기: 그대로
+- a22 진단 로그: 그대로
+- a23 보너스 마이그레이션: 그대로
+- OCR 로직 / digit_templates: 변경 없음
+
+→ OCR 회귀 테스트 baseline 그대로 유효 (52장 PASS).
+   실제 a24에서 회귀 돌려서 PASS 52/52 변동 없음 확인.
+
+[검증 결과]
+- syntax: main.py AST parse OK
+- 회귀: PASS=52/52, baseline 변동 없음
+- update_last_result에 max_kill/max_damage 변수 제거 확인
+- _calculate_impl의 캡 유지 확인 (3155줄 그대로)
+- 입력 가드 3개 (keypress/input/compositionend) 박힘 확인
+- compositionstart에서 blur 호출 잔존 안 함 확인
+
+[기대 동작]
+입력 차단:
+- 카드 편집 중 한글 'ㄱ' 입력 시도 → IME 시작 가능, 그러나 조합 끝나면 자동 제거
+- '!@#' 입력 시도 → keypress에서 차단
+- '100abc' 페이스트 시도 → input 이벤트에서 '100'으로 정리
+- 공백 입력 시도 → keypress에서 차단
+
+캡 동작:
+- 카드 편집에서 P1=100 입력 + 다른 카드 0/2/3 → 합계 105
+- OCR이 garbage로 999 잡으면 30으로 캡 유지
+
+[알려진 한계]
+- compositionend에서 정리하므로 한글 조합 중간(예: "ㄱ" 표시)에는 잠시 비-숫자가
+  보일 수 있음. 조합 확정 시점에 자동 제거됨.
+- maxLength=6 그대로 유지 (6자리 = 999999까지 입력 가능)
+  → 곡천님이 의도적으로 큰 값 넣어도 6자리까지만. 정책상 충분.
+- a20 카드 편집 토글(card_edit_enabled)은 a23부터 곡천님이 켜둔 상태로 유지.
+
+[backward compatibility]
+- API 시그니처 변경 없음
+- update_last_result 반환 dict 그대로
+- 기존 config.json 그대로 사용
+
+[남은 작업]
+- 카드 편집 ↔ 기록 동기화 실전 검증 (이번 채팅에서 a23으로 정상화 확인됨)
+- 솔로/듀오 50장 검증
+- QHD 환경 검증
+- 자동 모드 감지 (squad3 ROI 분리)
+
+문서 끝.
