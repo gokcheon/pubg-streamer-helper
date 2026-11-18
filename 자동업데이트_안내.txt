@@ -1,0 +1,41 @@
+﻿[완전 자동 배포 안내 — 곡천님용] (fix_a26에서 신설, 보드게임 오버레이 fix33 방식 그대로)
+=====================================================================
+
+■ 한 줄 요약
+새 버전을 낼 때 곡천님이 할 일 = 올리기.bat 더블클릭 1번.
+빌드도, 파일 업로드도 전부 깃허브 서버가 대신해요. 설치판 앱엔 자동으로 "새 버전" 배너가 떠요.
+
+■ 처음 딱 한 번 준비 (약 5분 — 보드게임 때 깃허브 계정·Git·로그인은 이미 돼 있어요)
+① github.com 로그인 → 오른쪽 위 [+] → [New repository]
+   - Repository name: pubg-streamer-helper   (업데이트주소.txt 에 적힌 이름과 똑같이)
+   - ★ Public 선택 (Private이면 다른 스트리머 앱이 업데이트를 못 받아요)
+   - README / .gitignore / License 추가 체크는 전부 해제 (이 폴더에 이미 있어요)
+   - [Create repository] 클릭
+② 이 폴더의 올리기.bat 더블클릭
+   - 보드게임 때 로그인해 뒀으면 그대로 올라가요. 로그인 창이 뜨면 GitHub 로그인 → 허용.
+③ 끝! 5~10분 뒤 저장소의 Releases 에 pubg_streamer_helper_setup_fix_a26.exe 가 자동으로 올라와요.
+   진행 과정은 저장소 → Actions 탭에서 실시간으로 볼 수 있어요 (초록 체크 = 성공).
+④ 첫 빌드가 성공하면 Releases 에서 exe 를 받아 곡천님 컴에 설치해 보세요.
+   그 설치판이 다음 버전(fix_a27)부터 자동 업데이트 배너를 띄워요.
+
+■ 이후 새 버전이 나올 때마다 (매번 10초)
+① Claude가 새 zip을 폴더에 넣어주면 → 새 폴더에서 올리기.bat 더블클릭. 끝!
+   (build_exe.bat 실행 불필요 — 깃허브가 서버에서 빌드해요)
+
+■ 테스터(다른 스트리머) 쪽은?
+- 설치판(fix_a26 이상)을 쓰고 있다면: 아무것도 안 해도 앱이 알아서 배너 → [업데이트] 한 번.
+- 아직 예전 zip 버전이라면: Releases 에서 setup exe 를 한 번만 받아 설치(덮어쓰기).
+
+■ 알아두면 좋은 것
+- 소스 코드가 저장소에 공개(Public)돼요. 단, 개인 정보는 .gitignore 로 차단돼 절대 올라가지 않아요:
+  config.json(치지직 Client ID/Secret 포함 가능), chat_tokens.json(토큰), history.json, logs/, screenshot/, debug/
+  저장소엔 빈 템플릿 config.default.json 만 올라가고, 앱이 첫 실행 때 그걸로 config.json 을 만들어요.
+- 회귀 테스트 캡처 52장(tests/regression/captures, 약 68MB)은 저장소에 같이 올라가요 (검증용).
+  테스터 QHD 119장은 용량(373MB) 때문에 제외 — tests/tester_qhd/ 에 두면 .gitignore 가 막아요.
+- 같은 버전(fix 번호)은 두 번 못 올려요. 항상 Claude에게 다음 번호 zip을 받아서 올리세요.
+  version.py 의 APP_LABEL 과 태그가 다르면 깃허브 빌드가 일부러 실패해요 (버전 꼬임 방지).
+- 곡천님 컴에서 직접 빌드하고 싶을 땐 예전처럼 build_exe.bat → installer\build_installer.bat 을 쓰면 돼요.
+
+■ 문제가 생기면
+- Actions 탭에서 빨간 ❌ → 그 화면을 캡처해서 Claude에게 보여주세요.
+- 올리기.bat이 뭐라고 하면 그 창 내용을 복사해서 Claude에게.
