@@ -1,0 +1,154 @@
+﻿PUBG 스트리머 헬퍼 fix_a20 패치노트
+=====================================
+[메인 목표]
+fix_a19에서 도입한 카드 더블클릭 편집 기능이 곡천님 환경에서 동작 안 하는
+원인을 진단하기 위한 디버그 빌드.
+
+a19 hotfix(카드 편집 리스너 주석)는 그대로 유지 → 시연 안전.
+곡천님이 의심 상황에서 토글로 활성화 가능.
+
+[배경]
+fix_a19 증상:
+  - read_target='damage', 자동 전송 OFF, 수동 송출, squad4 강제 환경
+  - F8 OCR 정상, 카드에 값 표시
+  - 카드 더블클릭 → input → 숫자 수정 → 엔터
+  - 결과: "팀 합산 딜량" 변하지 않음, 기록 탭 모든 플레이어 딜 0
+  - errors.log 비어 있음 (예외 없음)
+  - events.log에 update_last_result 호출 흔적 없음
+    → 단, 함수 자체에 진입 로그가 없어서 호출 여부 판별 불가
+
+[변경 사항]
+
+1. log_debug JS API 추가 (main.py 3522번 줄 근처)
+   - WebApi 클래스에 def log_debug(self, msg) 신설
+   - JS에서 py('log_debug', '메시지') 호출 시 events.log에
+     [JS] 태그로 기록
+   - 기존 console.log가 안 남던 문제 우회
+
+2. update_last_result 진단 로그 박기 (main.py 3534번 줄 근처)
+   - 진입 시점: 인자 타입과 raw 값 (%r) 기록
+     → pywebview 직렬화 이슈(list/tuple/dict 등) 즉시 판별 가능
+   - history.list_all() 결과: count + latest sent 상태 기록
+     → "이미 송출됨" 가드가 의도치 않게 발동했는지 확인
+   - 가드 차단/완료/예외 분기 모두 events.log로 흘림
+   - errors.log 외에도 events.log에 [a20] 예외 로그 박힘
+     → errors.log만 보면 놓칠 수 있던 실패 케이스 추적
+
+3. 인자 타입 안전 변환 추가 (main.py 3572번 줄 근처)
+   - p_kills/p_damages가 list가 아닌 다른 iterable로 들어와도 동작
+   - str/bytes/dict로 들어오면 빈 리스트로 fallback (로그 남김)
+   - 함수 시그니처에서 list 타입 힌트 제거
+     → pywebview의 실제 직렬화 동작 검증용
+
+4. JS startCardEdit/submitCardEdits 단계별 로그
+   (ui/index.html 706번 줄 근처)
+   - startCardEdit 진입, 가드 통과/차단, input 박스 생성, finish 호출
+   - finish 안에서 newVal 검증, submitCardEdits 호출 직전
+   - submitCardEdits 진입, lbl1 추정, 인자 조립 완료
+   - py('update_last_result') 호출 직전, 응답 수신 직후
+   - 응답이 안 오거나 await 자체가 throw하면 try-catch로 잡아서 로그
+     → JS-Python 경계에서 깨지는 케이스도 명시적으로 노출
+
+5. card_edit_enabled 토글 추가 (config.json + get_config + ui/index.html)
+   - 기본값 false → hotfix 그대로 유지, 시연 안전
+   - config.json에서 "card_edit_enabled": true 로 바꾸면
+     init이 더블클릭 리스너를 등록 → 진단 가능
+   - 시연 직후 곡천님이 의심 상황에서 직접 켜고 재현 시도 가능
+   - get_config 응답에 card_edit_enabled 키 노출
+
+[변경 안 한 것 (회귀 안전)]
+- DigitTemplateMatcher: 변경 없음
+- score_result_screen / RESULT_SCREEN_MIN_SCORE: 변경 없음
+- _shape_bonus / _calculate_impl 본체: 변경 없음
+- HistoryManager.add / update_latest / mark_sent_*: 변경 없음
+- ChzzkChatClient / 토큰 갱신: 변경 없음
+- F8 / F9 핫키: 변경 없음
+- 기록 탭 / 재전송: 변경 없음
+
+→ OCR 회귀 테스트 baseline 그대로 유효 (52장 PASS).
+   실제로 a20에서 회귀 테스트 돌려서 PASS 52/52 변동 없음 확인.
+
+[검증 결과]
+회귀 테스트:
+  python tests/regression/run_regression.py
+  → PASS=52/52, FAIL=0, baseline 변동 없음
+
+syntax:
+  - main.py: AST parse OK
+  - config.json: JSON parse OK
+
+양쪽 변경 반영:
+  - main.py [a20] 로그 11건
+  - ui/index.html [a20] 로그 19건
+  - log_debug 양쪽 정의/호출 일치
+  - card_edit_enabled: main.py 1건 / ui/index.html 3건 / config.json 1건
+
+[디버깅 절차 (곡천님이 카드 편집 의심 상황에서 사용)]
+
+1. 시연 끝나고 의심 시점에 앱 종료
+
+2. config.json 열기 → 마지막 줄 수정:
+   "card_edit_enabled": false
+     ↓
+   "card_edit_enabled": true
+
+3. 앱 재시작
+
+4. F8로 OCR 한 번 → 카드에 값 표시되는지 확인
+   (ROI 정상 + sent=False 상태 만들기)
+
+5. 메인 카드 더블클릭 → 숫자 수정 → 엔터
+
+6. logs/events.log 열어서 [JS], [a20] 태그 라인만 보기:
+   PowerShell 예시:
+     Get-Content logs/events.log | Select-String "\[JS\]|\[a20\]"
+
+7. 흐름 추적:
+   [JS] [a20] startCardEdit 호출 cardIdx=N
+     ↓ (없으면 dblclick 리스너 미등록 또는 이벤트 미발화)
+   [JS] [a20] startCardEdit: input 박스 생성
+     ↓ (없으면 가드(빈 카드/숫자 아님)에 걸림)
+   [JS] [a20] startCardEdit.finish 호출 commit=true
+     ↓ (없으면 엔터 키 이벤트 못 잡음)
+   [JS] [a20] startCardEdit.finish: submitCardEdits 호출 직전
+     ↓ (없으면 정규식 실패)
+   [JS] [a20] submitCardEdits 진입
+     ↓
+   [JS] [a20] submitCardEdits: update_last_result 호출 직전
+     ↓ (여기서 끊기면 pywebview 호출 자체 실패)
+   [a20] update_last_result 진입: p_kills_type=list ...
+     ↓ (인자 타입 이상하면 여기서 보임)
+   [a20] history 조회: count=N latest_sent=False
+     ↓ (latest_sent=True면 가드 차단됨)
+   [a20] update_last_result 완료: total_damage=...
+     ↓
+   [JS] [a20] submitCardEdits: 백엔드 응답 r={"ok":true,...}
+   [JS] [a20] submitCardEdits: UI 갱신 완료
+
+8. 어느 단계에서 끊기는지 보면 원인 즉시 판별 가능
+   - 곡천님이 events.log 일부만 캡처해서 다음 채팅에 첨부하면
+     a21에서 핀포인트 패치 가능
+
+[알려진 한계]
+- 디버그 로그가 events.log를 빠르게 채울 수 있음
+  (하지만 logging.handlers RotatingFileHandler가 이미
+   max_bytes=1MB / backup_count=5로 돌고 있어 무한 증가는 아님)
+- card_edit_enabled=true 상태에서 fix_a19와 동일한 버그가
+  재현될 가능성 있음 → 그게 진단 목적 자체라 OK
+- pywebview의 list 인자 직렬화가 실제 어떻게 되는지는
+  실전 로그를 봐야 확정 (a20에서 처음 측정함)
+
+[backward compatibility]
+- 기존 설정 파일 그대로 사용 가능 (card_edit_enabled 없으면 false 처리)
+- a19 빌드와 OCR 정확도 동일 (52장 회귀 변동 없음)
+- 카드 편집 토글 OFF 상태(기본값)에서는 a19 hotfix와 완전 동일 동작
+
+[남은 작업]
+- 곡천님 시연 → 의심 시 카드 편집 토글 → events.log 수집
+- a21에서 로그 분석 후 핀포인트 패치
+- 카드 편집 동작 확정 후 hotfix 주석 영구 제거 + log_debug 정리
+- 솔로/듀오 50장 검증 (a16 본격 작업)
+- QHD 환경 검증
+- 자동 모드 감지 (squad3 ROI 분리)
+
+문서 끝.

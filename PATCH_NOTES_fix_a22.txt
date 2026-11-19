@@ -1,0 +1,105 @@
+﻿PUBG 스트리머 헬퍼 fix_a22 패치노트
+=====================================
+[메인 목표]
+곡천님 보고: a21에서도 킬 보너스가 작동하지 않음.
+- 킬 모드 + 킬 보너스 체크 ON 상태로 계산해도 합산 카드에 +치킨 표시 안 됨
+- 기록에도 보너스 수치 미반영, "치킨"만 표시
+- 딜 보너스는 정상 작동
+
+코드 직접 비교했을 때 set_chicken_bonus_enabled / set_kill_bonus_enabled 두 setter는
+완전 대칭이고 _calculate_impl 보너스 분기도 대칭임. 그런데 결과가 다르므로
+**측정 도구 부족**이 원인. 실제 곡천님 환경에서 어디가 어긋나는지 알아야
+핀포인트 패치 가능.
+
+a22는 진단 빌드 + save_config 누락 수정 두 트랙.
+
+[변경 사항]
+
+1. 보너스 계산 진단 로그 추가 (main.py 3128줄 부근)
+   _calculate_impl 안에서 보너스 계산 직후 다음 정보를 events.log에 박음:
+     - is_chicken
+     - chicken_bonus_enabled (config 값) → chicken_bonus (계산 결과)
+     - kill_bonus_enabled (config 값) → kill_bonus (계산 결과)
+     - read_target
+
+   곡천님 시나리오에서 한 번 F8 누르면 events.log에 한 줄로 박힘:
+     [a22] 보너스 진단(_calculate_impl): is_chicken=True
+     chicken_enabled=True chicken_damage_cfg=1000 → chicken_bonus=1000 |
+     kill_enabled=??? kill_count_cfg=??? → kill_bonus=??? |
+     read_target=kill
+
+   → kill_enabled가 False면 체크박스 onchange가 백엔드에 안 닿은 것
+   → kill_enabled가 True인데 kill_count_cfg가 0이면 set_kill_bonus_count 미호출
+   → 둘 다 정상인데 kill_bonus가 0이면 _calculate_impl 분기 자체 문제
+   → 한 줄로 모든 케이스 즉시 식별 가능
+
+2. setter 진입 로그 (main.py 2866/2890줄 부근)
+   set_chicken_bonus_enabled / set_chicken_bonus_damage /
+   set_kill_bonus_enabled / set_kill_bonus_count 네 setter 모두에
+   진입 시 호출값 + 새 config 상태를 events.log에 박음.
+
+   → 곡천님이 체크박스 클릭 / 숫자 입력 시 백엔드에 진짜 도달하는지 추적
+   → 만약 [a22] set_kill_bonus_enabled 라인이 안 찍히면 UI onchange 미발화
+
+3. save_config 누락 수정 (별개 트랙, 같은 setter 4개에 추가)
+   기존: 보너스 setter들이 self.config 메모리만 갱신, 디스크 저장 안 함
+     → 앱 재시작하면 체크박스 풀려있음 (config.json 그대로)
+   변경: setter 안에서 save_config(self.config) 호출 추가.
+
+   주의: 다른 setter들 (set_chat_message_format, set_game_mode, set_read_target)도
+   동일 패턴으로 save_config 안 부름. a22에서는 보너스 4개만 손댐.
+   → 다른 setter들도 같은 정책으로 갈지는 곡천님 합의 후 별도 패치.
+
+[변경 안 한 것 (회귀 안전)]
+- _calculate_impl 보너스 계산 분기: 변경 없음 (진단 로그만 추가).
+- update_last_result 보너스 계산: 변경 없음.
+- set_*_count(value): save_config 추가만 차이.
+- HistoryManager / OCR / 핫키 / 채팅 / a20 토글 / a21 표시 분기: 모두 변경 없음.
+
+→ OCR 회귀 테스트 baseline 그대로 유효.
+   실제 a22에서 회귀 돌려서 PASS 52/52 변동 없음 확인.
+
+[검증 결과]
+- syntax: main.py AST parse OK
+- 회귀: PASS=52/52, baseline 변동 없음
+- [a22] 로그 마커: main.py에 5건 (보너스 진단 1 + setter 4)
+
+[곡천님 진단 절차]
+
+1. 새 빌드 받아 dist 교체
+
+2. 앱 시작 → 설정 탭 → 다음 4가지 중 누락된 것 클릭
+   - 치킨 보너스 사용 (체크 토글 → 다시 체크)
+   - 보너스 딜량 (수치 다시 입력)
+   - 치킨 시 킬 보너스 (체크 토글 → 다시 체크)
+   - 보너스 킬수 (수치 다시 입력)
+
+   → events.log에 [a22] set_*** 4개 라인 찍히는지 확인
+   → 없으면 UI onchange 자체가 안 잡히는 것
+
+3. 읽기 대상 = 킬, 치킨 케이스 한 번 F8
+
+4. events.log 가장 최근 [a22] 보너스 진단 라인 캡처해서 다음 채팅에 첨부
+
+5. 분석:
+   chicken_enabled / kill_enabled가 곡천님이 체크한 상태와 일치하는지
+   → 일치하지 않으면 setter 호출 흐름 문제
+   → 일치하는데 kill_bonus=0이면 진짜 _calculate_impl 분기 문제 (코드상으로는 대칭이지만)
+
+[알려진 한계]
+- 진단 빌드라 곡천님 한 번 재현하셔야 다음 패치 위치 확정 가능.
+- save_config 추가가 다른 setter들과 비대칭 - 일관성 정리는 별도 패치 필요.
+- a20 카드 편집 디버깅(card_edit_enabled 토글) 그대로 유지.
+
+[backward compatibility]
+- config.json 구조 변경 없음.
+- 기존 설정 로드 그대로 작동.
+- save_config 추가는 누적적 변경 (기존 동작에 손해 없음).
+
+[남은 작업]
+- 곡천님 진단 결과 받아 a23 핀포인트 패치
+- a20 카드 편집 디버깅 (events.log 수집 후)
+- 솔로/듀오 50장 검증
+- QHD 환경 검증
+
+문서 끝.

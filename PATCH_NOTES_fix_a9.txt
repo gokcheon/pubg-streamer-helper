@@ -1,0 +1,64 @@
+﻿PUBG 스트리머 헬퍼 fix_a9 패치노트
+=====================================
+
+[메인 목표]
+fix_a8 점검 결과 발견된 잠재적 이슈 보강 + 디버그 이미지 자동 정리 제거
+
+[변경 사항]
+
+1. 디버그 이미지 자동 정리 로직 제거 (사용자 요청)
+   - 기존: 계산할 때마다 debug 폴더의 5개 초과분 자동 삭제
+   - 변경: 자동 삭제 없음. UI의 "debug 폴더 비우기" 버튼으로 수동 관리
+   - 이유: 사용자가 디버그 이력을 더 길게 보관하길 원함
+
+2. 치지직 토큰 갱신 락 분리 (점검 #1 보강)
+   - 기존: ensure_access_token()이 _lock 안에서 refresh_access_token() 호출
+     → 네트워크 응답 대기(최대 20초) 동안 _lock 점유
+     → 동시 send_message 시도가 줄지어 대기
+   - 변경: _lock(빠른 토큰 dict 보호)과 _refresh_lock(갱신 직렬화)을 분리
+     → 갱신 중에도 다른 스레드의 has_valid_access_token() 등은 차단되지 않음
+     → double-check pattern으로 동시 갱신 시도 방지
+   - 영향: 빠른 연속 채팅 자동전송 시 응답성 개선
+
+3. _extract_number의 RULE_ONLY 분기에 sanity 검사 추가 (점검 #2 보강)
+   - 기존: template_result가 None일 때 last_best_result.value를 sanity 검사 없이 반환
+   - 변경: max_allowed(기본 10000) 초과 또는 음수면 0 처리 + 경고 로그
+   - 영향: _calculate_impl에서 외부적으로 막고 있어 실용적 차이는 미미하지만,
+     함수 내부 일관성 확보. 비정상 값이 채팅으로 전송될 가능성을 다중 방어.
+
+4. 중복 실행 락 (.running.lock) 검증 강화 (점검 #3 보강)
+   - 기존: PID가 살아있으면 무조건 중복 실행으로 판정
+     → 시스템 재부팅 후 PID가 다른 프로세스에 재할당되면 영원히 차단
+     → 사용자가 .running.lock 수동 삭제해야 했음
+   - 변경: 두 단계 검증 추가
+     ① 락 파일 mtime이 24시간 초과면 무효 처리 (비정상 종료 잔재로 간주)
+     ② psutil.Process(pid).name()으로 프로세스명 검증
+        - 빌드 환경(frozen): 본 앱 exe명과 일치해야 중복 판정
+        - 개발 환경: python.exe / pythonw.exe면 중복 판정
+     ③ 검증 실패 시 락 파일 자동 삭제 후 정상 진행
+   - 영향: PID 재사용 케이스에서 사용자 개입 없이 자동 복구
+
+5. browse_steam_dir 다이얼로그 timeout 증가 (점검 #4 부분 보강)
+   - 기존: subprocess timeout 60초 + thread join 65초
+     → 사용자가 폴더 탐색 중 1분 넘기면 강제 종료
+   - 변경: subprocess timeout 600초(10분) + thread join 610초
+   - 영향: 사용자가 폴더 탐색 시간을 충분히 확보 가능
+   - 비고: pywebview API 직렬화 자체는 변경 안 함 (Windows 폴더 다이얼로그는
+     모달이라 다이얼로그 떠있는 동안 다른 UI 조작이 어차피 불가)
+
+[변경 안 한 항목]
+
+- 점검 #5 (save_config 동시 수정) → 매우 빠른 연속 동작에서만 발생하는 이론적 race
+- 점검 #7 (chat_message_format default 불일치) → 트리비얼, 첫 실행 외 영향 없음
+- screenshot 폴더 자동 정리 → 곡천님 지시에 디버그 폴더만 언급, screenshot 폴더는
+  매 캡처마다 누적되어 자동 관리 필요성 높으므로 그대로 유지 (최근 20장 유지)
+
+[검증 결과]
+- 솔로 OCR 정확도 회귀 검증: 8/8 (100%) - fix_a8과 동일
+- 모든 변경에 # fix_a9 주석으로 추적 가능
+
+[backward compatibility]
+- 외부 API 시그니처 변경 없음
+- config.json 스키마 변경 없음
+- 사용자 액션 없이 a8 → a9 직접 업그레이드 가능
+- 기존 .running.lock 파일이 있어도 새 검증 로직이 자동 처리

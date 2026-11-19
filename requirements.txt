@@ -1,0 +1,8 @@
+mss
+pillow
+opencv-python
+pytesseract
+requests
+psutil
+pywebview
+pystray

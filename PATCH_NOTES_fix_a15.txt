@@ -1,0 +1,248 @@
+﻿PUBG 스트리머 헬퍼 fix_a15 패치노트
+=====================================
+
+[메인 목표]
+실전 50장+ 검증에서 발견된 fix_a14의 두 가지 헛점 보완:
+  1. 단일 자리 점수 동점 시 "큰 숫자 우선" 정렬로 인한 2/7 오인식
+  2. 결과창이 아닌 캡처에서도 OCR이 강제 진행되어 garbage 결과 출력
+
+[배경]
+fix_a14 배포 후 곡천님이 수집한 스쿼드 50장+ 캡처(총 52장)로 검증.
+시각 검수 결과 vs a14 OCR 비교에서:
+  - 킬 200/200 (100%) - 안정적
+  - 딜 199/200 (99.5%) - 1건 오인식 (12번 P1 딜: 172→177)
+  - 결과창 아닌 캡처 2장 (41번, 43번)에서 9999 등 garbage 출력
+  - 종합 99.75%
+
+[발견된 두 가지 문제]
+
+1. 12번 P1 딜 마지막 자리 2 → 7 오인식
+   원인: _digit_options() 정렬 키가 (score, digit != "1", digit)
+        점수 동점일 때 큰 숫자 우선 → 7이 2를 이김
+   실측 (12번 P1 딜 마지막 자리 candidate 영역):
+     - 하단 3 row 흰픽셀: r17=4, r18=10, r19=10, sum=24
+     - 2 템플릿: r17=11, r18=11, r19=11, sum=33 (받침 꽉 참)
+     - 7 템플릿: r17=3, r18=3, r19=4, sum=10 (받침 빈약)
+     → candidate는 명확히 2의 패턴이지만 매칭 점수 산정에서 동점 발생
+   해결: _shape_bonus()에 2/7 자리 무관 형태 검증 추가
+
+2. 결과창이 아닌 캡처에서 OCR 강제 진행
+   원인: detect_game_mode()가 무조건 best_mode를 반환 (게이트 없음)
+        호출부에서도 mode 검증만 하고 "결과창인지 아닌지"는 체크 안 함
+   실측 (best_score 분포):
+     - 정상 결과창 50장: min=0.1008, max=0.2780
+     - 결과창 아님 (다음 페이지) 2장: 0.0490, 0.0669
+     - 마진: 0.0669 ↔ 0.1008 = 0.034 차이
+   해결: score_result_screen() 함수 추가 + 호출부에 진입 게이트
+
+[변경 사항]
+
+1. _shape_bonus 함수에 2/7 형태 검증 추가 (main.py 1295번 줄 근처)
+   영역: rows 17-19 (하단 3 row) 흰픽셀 합산
+   - "2" 후보: bottom_3rows >= 18 → +0.06, <= 12 → -0.10
+   - "7" 후보: bottom_3rows >= 18 → -0.10, <= 12 → +0.06
+   참고: 동일한 결의 shape_bonus는 fix_a14의 0/6/8/9, 6/9, 6/8, 5/6, 9/3 분리에 이미 사용됨
+
+2. score_result_screen 함수 추가 (main.py 1727번 줄 근처)
+   detect_game_mode와 동일 측정 기준이지만 (mode, score) 튜플 반환
+   기존 detect_game_mode는 그대로 유지 (backward compat)
+   상수 RESULT_SCREEN_MIN_SCORE = 0.085 추가
+   (invalid 최대 0.0669, valid 최소 0.1008 사이의 안전 마진)
+
+3. _calculate_impl에 결과창 진입 게이트 적용 (main.py 2334번 줄 근처)
+   - auto/manual 모드 모두 적용 (수동 squad4 고정 사용자도 보호)
+   - score_result_screen으로 best_score 계산
+   - score < threshold 면 OCR 스킵하고
+     "결과창이 아닌 화면으로 판단됨 (점수 X.XXX < Y.YYY)" 에러 반환
+   - config.json으로 비활성화 가능:
+     - "result_screen_gate_enabled": false  → 게이트 비활성화
+     - "result_screen_min_score": 0.085     → 임계값 조정
+   - event_logger에 차단 사유 기록
+
+[검증 결과]
+
+스쿼드 52장 (50장 valid + 2장 결과창 아님):
+  킬   200/200 (100%) ✓
+  딜   200/200 (100%) ✓ (a14 199/200 → +1 개선)
+  종합 400/400 (100%) ✓
+  INVALID 차단:   2/2 (100%) ✓
+  False positive: 0/50 ✓ (정상 캡처가 잘못 차단된 것 0건)
+
+a14 vs a15 핵심 케이스:
+  #12 P1딜 172: a14=177 ❌ → a15=172 ✓
+  #41 (결과창 아님): a14=garbage(9999/9905 등) → a15=GATED ✓
+  #43 (결과창 아님): a14=garbage(9999/495 등)  → a15=GATED ✓
+
+회귀 검증:
+  - a14 시점 정답이었던 케이스 (399건) 모두 a15에서도 정답 유지
+
+[남은 작업]
+
+다음 단계 검증 필요 (이번 채팅 범위 외):
+  - 솔로/듀오 회귀 검증 (a15 변경이 솔로/듀오 정확도에 영향 없는지)
+  - QHD/4K 캡처에서의 게이트 임계값 적정성 (다운스케일로 흰픽셀 비율
+    달라질 수 있음 → 임계값 미세조정 가능성)
+  - 자동 모드 감지 정확도 (47/49/50번이 squad4인데 squad3으로 감지됨)
+    → squad3 ROI가 squad4 ROI와 겹치는 영역 분리 필요
+    → fix_a16 이후 본격 작업 (캡처 추가 수집 후)
+  - 스쿼드3 본격 작업 (캡처 더 모은 뒤)
+
+[backward compatibility]
+- detect_game_mode() 시그니처 변경 없음 (기존 코드 그대로 호환)
+- config.json 새 키 (선택적, 기본값으로 동작):
+  - result_screen_gate_enabled (기본 true)
+  - result_screen_min_score (기본 0.085)
+- 솔로/듀오/스쿼드3 OCR 로직 변경 없음 (스쿼드4 형태 검증만 추가, 다른 모드도
+  동일 _shape_bonus를 쓰지만 2/7 패턴은 모드 무관 신뢰 가능한 신호)
+- digit_templates_strip*.png 파일 변경 없음
+
+[추가 사항: 회귀 테스트 도구]
+
+tests/regression/ 폴더 신설:
+  - 스쿼드 52장 캡처 + 정답 데이터셋 박제
+  - run_regression.py 한 번 실행으로 전체 검증
+  - expected_results.json baseline (fix_a15 시점 52/52 PASS)
+  - 패치마다 회귀 자동 감지 → "하나 고치면 하나 깨지는" 사이클 차단
+
+사용법:
+  python tests/regression/run_regression.py            # 회귀 검증
+  python tests/regression/run_regression.py --update-baseline  # 의도된 변경 시
+
+종료 코드:
+  0 = 모든 케이스 PASS, baseline과 동일
+  1 = REGRESSION 발생 (이전엔 통과한 케이스가 깨짐) - 위험
+  2 = 신규 실패만 발생
+
+자세한 사용법은 tests/regression/README.txt 참조.
+
+빌드 영향: PyInstaller가 명시된 --add-data만 dist에 포함하므로
+tests/ 폴더는 자동 제외됨 (실행 .exe에 안 들어감).
+
+[추가 사항: 안정성 점검 패치 (fix_a15.1)]
+
+세밀한 코드 점검에서 발견된 잠재 크래시 케이스 3건 + 시작 시점 응답없음 보강:
+
+1. F8 핫키 콜백 예외 보호 (HotkeyManager._run, line 312)
+   - 이전: callback() 직접 호출 → 콜백 한 번 깨지면 메시지 루프 죽음 → F8 영구 무력화
+   - 수정: try/except로 격리 → 예외 발생해도 메시지 루프 유지 → F8 계속 동작
+   - 영향: 가장 위험한 케이스였음 (사용자가 디버그 매우 어려움)
+
+2. OAuth 콜백 서버 포트 충돌 시 친절 메시지 (start_interactive_login, line 541)
+   - 이전: HTTPServer 시작 실패 시 OSError가 그대로 호출자로 전파 (이미 캐치됨이지만 메시지 불친절)
+   - 수정: 포트 충돌을 명시 캐치하여 "포트 X 사용 불가, 다른 프로그램 종료 후 재시도" 안내
+   - 영향: UX 개선 (앱 크래시는 원래도 없음)
+
+3. manual_send 예외 보호 (line 2702)
+   - 이전: try/except 없음 → config 이상치(_multiplier 등)에서 예외 가능성
+   - 수정: 전체 함수를 try/except로 래핑 → JS 호출 실패 → UI 영향 차단
+   - 영향: 매우 낮은 위험이지만 완전성 위해 보강
+
+4. 시작 직후 클릭 시 응답없음 표시 보강 (3중 방어)
+   - 증상: 앱 켠 직후 빠르게 클릭하면 Windows가 "응답 없음" 표시
+   - 원인: WebView2 초기화 + mss 첫 호출 + template strip 로드 등이
+          첫 사용자 입력에 동기 처리되면서 메시지 펌프 5초 룰 위반
+   - 패치 4-1 (UI 가드, ui/index.html):
+     · pywebviewready 이벤트 발화 + init() 완료 전엔 모든 사용자 입력 차단
+     · "초기화 중..." 오버레이 표시
+     · 5초 안에 init 안 끝나면 강제 시도, init 실패해도 가드 자동 해제
+   - 패치 4-2 (백그라운드 워밍업, main.py WebApi.__init__):
+     · 무거운 첫 호출들(mss, template strip)을 별도 스레드에서 미리 실행
+     · 사용자 첫 클릭 시점에 이미 캐싱됨 → 즉시 응답
+   - 패치 4-3 (모니터 리스트 캐싱, main.py _get_monitor_list):
+     · mss 호출 결과 60초 캐싱 → get_config 반복 호출 시 빠름
+   - 영향: 시작 직후 입력 무시되면서 응답없음 자체가 안 나오게 됨
+
+OCR 로직 변경 없음. 회귀 테스트 영향 없음.
+패치된 fix_a15.1로 핵심 OCR 케이스 3개 재검증:
+  - #12 P1딜 172 (a15 신규 케이스): 정상 인식 ✓
+  - #41 게이트 차단 (score=0.0669 < 0.085): 정상 차단 ✓
+  - #1 정상 통과 (score=0.2196): 정상 통과 ✓
+
+[추가 사항: 다른 PC 배포 안정화 (fix_a15.2)]
+
+가상 시나리오 대비 + 실제 곡천님 PC 로그 분석 결과 반영:
+
+[Phase 1] 한글 경로 robust 강화
+  - check_environment에 한글/특수문자 경로 사전 검출 추가
+    · "C:\Users\곡천\..." 같은 경로에서 미리 안내 메시지 표시
+    · 영문 경로 권장 (대부분은 정상 동작이지만 선제적 안내)
+  - browse_steam_dir의 PowerShell 호출에 utf-8 명시
+    · [Console]::OutputEncoding = UTF8 강제
+    · subprocess.run의 encoding/errors 명시
+    · 한글 폴더 경로 안전 처리
+
+[Phase 2] DPI 스케일링 대응
+  - _enable_dpi_awareness() 함수 추가
+    · main() 진입 직후 (webview/mss import 전) 호출
+    · Per-Monitor V2 → System → 폴백 순으로 시도
+    · DPI 가상화 환경(125%/150%/200%)에서 mss가 진짜 픽셀 반환하도록 보장
+  - 곡천님 PC 로그 분석 결과: 이미 DPI 영향 없이 작동 중
+    · 며칠 사용 동안 errors.log 0바이트, 해상도 정규화 0회
+    · 그래도 친구 PC 환경 차이 대비로 선제 적용
+
+[Phase 3] 환경 자가 진단 강화 (원격 디버그 인프라)
+  - WebApi 시작 시 진단 로깅 대폭 확장:
+    · Python 버전, Platform, Windows 빌드
+    · 라이브러리 버전 (mss, cv2, webview)
+    · 실행 경로 + 작업 폴더
+    · 모든 모니터 정보 (DPI 가상화 검출용)
+    · DPI awareness 상태
+    · 사용자 설정 요약 (game_mode, capture_mode, 핫키, 채팅 등)
+  - 첫 캡처 시점에 frame 크기 진단 로깅 (1회만)
+    · "첫 캡처 진단: mode=screen frame=1920x1080" 식
+    · DPI 가상화 발생 시 모니터보다 작게 잡히므로 즉시 진단 가능
+  - 친구가 문제 신고할 때 events.log 한 번 보면 환경 거의 다 파악 가능
+
+[Phase 4] 사용자 안내문
+  - 사용안내.txt 추가
+    · 설치 절차
+    · 기본 사용법 (F8, 캡처 모드, 게임 모드)
+    · 흔한 문제 해결 (응답없음, F8 안 먹힘, Defender 차단 등)
+    · 문제 신고 시 어떤 로그 보낼지 안내
+
+OCR 로직 변경 없음. 회귀 테스트 영향 없음.
+핵심 OCR 케이스 3개 재검증: 모두 정상 (172 인식, GATED 차단, 90 통과).
+
+
+
+[추가 사항: 안정성 인프라 (fix_a15.3)]
+
+OCR 로직 무관 + 안정성 인프라 강화. "다른 패치하자" 요청 응답.
+
+A. 메모리 사용량 자동 측정 (누수 모니터링)
+   - 30분마다 events.log에 RSS/VMS 메모리 + 스레드 수 기록
+   - 시작 시 베이스라인 1회 + 이후 주기적 기록
+   - 며칠 후 로그 보면 누수 패턴 즉시 보임
+     · 정상: 200MB → 250MB → 220MB (평형점에서 진동)
+     · 누수: 200MB → 400MB → 800MB (시간 비례 증가)
+   - config로 비활성화/조정 가능:
+     · "memory_log_enabled": false → 비활성
+     · "memory_log_interval_minutes": 60 → 1시간 간격으로 변경
+   - 최소 1분 간격 강제 (남용 방지)
+   - cleanup에서 스레드 안전 종료
+
+C. 로그 로테이션 백업 카운트 5 → 7
+   - 메모리 로깅 추가로 로그 회전 약간 가속될 수 있어 여유 확보
+   - 1MB × 8 (현재 + 백업 7) = 약 8MB 디스크 사용
+   - config로 조정 가능: "logging.backup_count": N
+
+F. F8 핫키 등록 실패 시 사용자 안내
+   - 이전: 등록 실패해도 로그에만 기록, UI엔 표시 안 됨 → 사용자가 "왜 F8 안 되지?" 모름
+   - 수정:
+     · HotkeyManager에 registration_failed/error 플래그 노출
+     · poll_state에서 이 상태 UI로 전달
+     · UI: 핫키 실패 시 상태바에 한 번만 알림 표시 (반복 X)
+   - 메시지 예: "F8 핫키 등록 실패 (다른 프로그램이 F8을 점유 중일 수 있음, code=1409)"
+
+B. 종료 시 정리 코드 점검 (변경 없음)
+   - 기존 cleanup이 _stop_steam_watch, _hotkey_manager.stop, 락 파일 삭제 모두 처리
+   - a15.3 메모리 측정 스레드 정리 추가됨
+
+G. config.json 손상 시 복구 점검 (변경 없음)
+   - 기존 코드가 이미 매우 견고함:
+     · CONFIG_PATH → CONFIG_BACKUP_PATH → 배포본 원본 3중 fallback
+     · atomic write (.tmp → os.replace) + fsync
+   - 추가 작업 불필요
+
+OCR 로직 변경 없음. 회귀 테스트 영향 없음.
+핵심 OCR 케이스 3개 재검증: 모두 정상.
